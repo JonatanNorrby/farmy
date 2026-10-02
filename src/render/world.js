@@ -1,6 +1,7 @@
 import { FARM, plotPosition, PLOT_COUNT } from "../config/crops.js";
 import { buildCrop, createCropMaterials } from "./cropMeshes.js";
 import { createWateringEffect } from "./watering.js";
+import { buildSprinkler, createSprinklerMaterials } from "./sprinklerMeshes.js";
 
 export function createWorld(scene) {
   const B = globalThis.BABYLON;
@@ -24,6 +25,7 @@ export function createWorld(scene) {
   materials.water.alpha = .91;
   materials.window.emissiveColor = new B.Color3(.08,.1,.075);
   const cropMaterials = createCropMaterials(scene);
+  const sprinklerMaterials = createSprinklerMaterials(scene);
   const wateringEffect = createWateringEffect(scene);
 
   function box(name, w, h, d, x, y, z, material, parent) {
@@ -72,7 +74,7 @@ export function createWorld(scene) {
       // Absolute mesh positions become local when parented; correct to the tile.
       tuft.position.set(tx, .44, tz);
     }
-    plots.push({ soil, edge, furrows, lockDecor, unlocked: null, root: null, stage: -99, cropId: null, position: p });
+    plots.push({ soil, edge, furrows, lockDecor, unlocked: null, root: null, sprinklerHead: null, stage: -99, cropId: null, position: p });
   }
   function updateExpansion(unlockedRows) {
     const count = unlockedRows * FARM.columns;
@@ -100,15 +102,23 @@ export function createWorld(scene) {
   }
   function updatePlot(index, plot, stage) {
     const view = plots[index];
-    if (view.stage === stage && view.cropId === (plot ? plot.cropId : null)) return;
+    // Structures have their own cache key: the sprinkler cannot be mistaken
+    // for an empty plot (both otherwise have a growth stage of -1).
+    const displayId = plot?.kind === "sprinkler" ? "sprinkler" : plot?.cropId ?? null;
+    if (view.stage === stage && view.cropId === displayId) return;
     if (view.root) view.root.dispose();
     view.root = null;
+    view.sprinklerHead = null;
     view.stage = stage;
-    view.cropId = plot ? plot.cropId : null;
+    view.cropId = displayId;
     if (!plot) return;
-    const root = new B.TransformNode("crop plot " + index, scene);
+    const root = new B.TransformNode("plot object " + index, scene);
     root.position.set(view.position.x, .37, view.position.z);
-    buildCrop(scene, root, plot.cropId, stage, cropMaterials);
+    if (displayId === "sprinkler") {
+      view.sprinklerHead = buildSprinkler(scene, root, sprinklerMaterials);
+    } else {
+      buildCrop(scene, root, plot.cropId, stage, cropMaterials);
+    }
     view.root = root;
   }
 
@@ -193,12 +203,17 @@ export function createWorld(scene) {
     const plot = plots[index];
     if (plot) wateringEffect.play(plot.position);
   }
+  function playSprinklerWatering(sourceIndex, targetIndex) {
+    const source = plots[sourceIndex], target = plots[targetIndex];
+    if (source && target) wateringEffect.spray(source.position, target.position);
+  }
 
   function animate(ms) {
     for (let i=0;i<plots.length;i++) {
-      const root = plots[i].root;
-      if (root) root.rotation.z = Math.sin(ms*.00125 + i*.7) * .024;
+      const view = plots[i];
+      if (view.sprinklerHead) view.sprinklerHead.rotation.y = ms * .0011 + i * .23;
+      else if (view.root) view.root.rotation.z = Math.sin(ms*.00125 + i*.7) * .024;
     }
   }
-  return { plots, setHover, updatePlot, updateExpansion, playWatering, animate };
+  return { plots, setHover, updatePlot, updateExpansion, playWatering, playSprinklerWatering, animate };
 }
