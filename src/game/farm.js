@@ -1,13 +1,14 @@
 import { CROPS, FARM, SPRINKLER, PLANTABLE_CROPS, STARTER_PATCHES, landBounds } from "../config/crops.js";
 import { INITIAL_STOCK, MAX_STOCK, SHOP_ITEMS } from "../config/shop.js";
+import { EMPTY_HARVEST_BAG, HARVEST_BAG_CAPACITY, harvestBagCount, harvestBagValue } from "../config/harvest.js";
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 export const roundPosition = value => Math.round(value * 100) / 100;
 
 export function newFarm() {
   return {
     version: SAVE_VERSION, coins: 64, harvested: 0, landLevel: FARM.initialLevel,
-    inventory: { ...INITIAL_STOCK },
+    inventory: { ...INITIAL_STOCK }, harvestBag: { ...EMPTY_HARVEST_BAG },
     patches: STARTER_PATCHES.map(({ x, z }) => ({ x, z, content: null })),
   };
 }
@@ -224,12 +225,35 @@ export function harvest(state, index, now = Date.now()) {
   if (isSprinkler(content)) return failure(state, "Sprinkler occupies this spot.");
   if (!content) return failure(state, "Nothing to harvest.");
   if (now < content.readyAt) return failure(state, "Still growing.");
+  if (harvestBagCount(state.harvestBag) >= HARVEST_BAG_CAPACITY)
+    return failure(state, "Harvest bag full · Sell before harvesting more.");
+  const bag = { ...state.harvestBag, [content.cropId]: state.harvestBag[content.cropId] + 1 };
   return {
     ok: true,
     state: withContent(state, index, null, {
-      coins: state.coins + CROPS[content.cropId].reward, harvested: state.harvested + 1,
+      harvestBag: bag, harvested: state.harvested + 1,
     }),
-    message: CROPS[content.cropId].icon + " Harvested · +✦ " + CROPS[content.cropId].reward,
+    message: CROPS[content.cropId].icon + " Collected · Bag " +
+      harvestBagCount(bag) + "/" + HARVEST_BAG_CAPACITY +
+      (harvestBagCount(bag) === HARVEST_BAG_CAPACITY ? " · Sell your harvest" : ""),
+  };
+}
+
+// Selling is the only place where harvested crops become spendable coins.
+// Harvesting fills the bag first and cannot exceed its capacity.
+export function sellHarvest(state) {
+  const count = harvestBagCount(state.harvestBag);
+  if (count === 0) return failure(state, "Harvest bag is empty.");
+  const earnings = harvestBagValue(state.harvestBag);
+  if (!Number.isSafeInteger(state.coins + earnings))
+    return failure(state, "Unable to sell harvest.");
+  return {
+    ok: true,
+    state: {
+      ...state, coins: state.coins + earnings,
+      harvestBag: { ...EMPTY_HARVEST_BAG },
+    },
+    message: "❀ Sold " + count + " crops · +✦ " + earnings,
   };
 }
 export function growthProgress(content, now = Date.now()) {
