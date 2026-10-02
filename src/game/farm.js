@@ -158,6 +158,54 @@ export function plant(state, index, cropId, now = Date.now()) {
     message: crop.icon + " " + crop.name + " planted" + (automatic ? " · 💧" : ""),
   };
 }
+// Stroke-based planting over prepared soil. Intersect each soil center with the
+// dragged world-space segment rather than relying on pointermove event density.
+// A seed is spent exactly once per newly planted patch; occupied patches and
+// sprinklers are skipped. Candidates are visited in the direction of travel so
+// a nearly empty bag runs out where the stroke reaches them, not array order.
+export function paintSeeds(state, from, to, cropId = "wheat", now = Date.now()) {
+  if (![from, to].every(point =>
+    point && Number.isFinite(point.x) && Number.isFinite(point.z)))
+    return failure(state, "Point at prepared soil.");
+  if (!PLANTABLE_CROPS.includes(cropId)) return failure(state, "Only wheat can be planted.");
+  if (state.inventory.wheat < 1) return failure(state, "Seed bag empty · Shop → Seeds.");
+
+  const dx = to.x - from.x, dz = to.z - from.z;
+  const lengthSquared = dx * dx + dz * dz;
+  const radiusSquared = FARM.seedBrushRadius * FARM.seedBrushRadius;
+  const candidates = [];
+  for (let index = 0; index < state.patches.length; index++) {
+    const patch = state.patches[index];
+    if (patch.content !== null) continue;
+    const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1,
+      ((patch.x - from.x) * dx + (patch.z - from.z) * dz) / lengthSquared));
+    const px = from.x + t * dx, pz = from.z + t * dz;
+    const distanceSquared = (patch.x - px) ** 2 + (patch.z - pz) ** 2;
+    if (distanceSquared <= radiusSquared) candidates.push({ index, t, distanceSquared });
+  }
+  candidates.sort((a, b) =>
+    a.t - b.t || a.distanceSquared - b.distanceSquared || a.index - b.index);
+  if (!candidates.length) return failure(state, "No empty soil in brush.");
+
+  let next = state;
+  const plantedIndices = [], wateredIndices = [];
+  for (const { index } of candidates) {
+    if (next.inventory.wheat === 0) break;
+    const planted = plant(next, index, cropId, now);
+    if (!planted.ok) continue;
+    next = planted.state;
+    plantedIndices.push(index);
+    wateredIndices.push(...(planted.wateredIndices ?? []));
+  }
+  if (!plantedIndices.length) return failure(state, "Seed bag empty · Shop → Seeds.");
+  return {
+    ok: true, state: next, plantedIndices, wateredIndices,
+    message: "🌾 Painted " + plantedIndices.length + " seed" +
+      (plantedIndices.length === 1 ? "" : "s") +
+      (next.inventory.wheat === 0 ? " · Bag empty" : ""),
+  };
+}
+
 export function water(state, index, now = Date.now()) {
   if (!validIndex(state, index)) return failure(state, "Paint soil first.");
   const content = state.patches[index].content;
