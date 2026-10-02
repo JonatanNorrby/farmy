@@ -91,6 +91,19 @@ button { font: inherit; cursor: pointer; }
 .counter-icon.basket { color: #8fb879; }
 .counter small { display: block; color: #758c78; font-size: 9px; font-weight: 900; letter-spacing: 1px; }
 .counter strong { display: block; font-size: 21px; line-height: 1.15; color: #45694a; }
+.harvest-counter { pointer-events: auto; gap: 9px; }
+.harvest-counter.full { border-color: #b98050; background: #f0d6b6f5; }
+.bag-info { min-width: 55px; }
+.sell-harvest {
+  pointer-events: auto; flex: none; padding: 8px 11px;
+  border: 1px solid #668967; border-bottom: 3px solid #527657;
+  border-radius: 9px; background: #b9d1ac; color: #355c3e;
+  font-size: 11px; font-weight: 900; white-space: nowrap;
+}
+.sell-harvest:hover:not(:disabled) { background: #d0dfb8; }
+.sell-harvest:disabled { color: #92917d; background: #d8d4bf; border-color: #b9b69c; cursor: not-allowed; }
+.sell-harvest:focus-visible { outline: 3px solid #426e5b; outline-offset: 3px; }
+
 
 .inspector {
   position: absolute; z-index: 2; right: 32px; top: 138px; width: 212px; padding: 13px 15px;
@@ -176,6 +189,11 @@ button { font: inherit; cursor: pointer; }
   .counter { gap: 4px; min-width: 65px; padding: 6px; }
   .counter-icon { font-size: 16px; }
   .counter strong { font-size: 15px; }
+  .harvest-counter { gap: 4px; padding: 5px 6px; }
+  .harvest-counter .counter-icon { display: none; }
+  .harvest-counter .bag-info { min-width: 42px; }
+  .sell-harvest { padding: 5px 6px; font-size: 9px; }
+
   .counter small { font-size: 7px; letter-spacing: 0; }
   .inspector { top: 70px; right: 12px; width: 155px; padding: 10px; }
   .inspect-title { font-size: 13px; }
@@ -199,6 +217,7 @@ button { font: inherit; cursor: pointer; }
   .topbar { flex-wrap: wrap; }
   .identity { gap: 4px; }
   .counters { width: 100%; justify-content: flex-end; }
+  .harvest-counter { max-width: 160px; }
   .settings-panel, .shop-panel { top: 100px; }
   .inspector { top: 116px; }
 }
