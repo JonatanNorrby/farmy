@@ -117,6 +117,10 @@ test("the Shop toggles accessible Seeds/Buildings tabs and coexists with Setting
     assert.equal(f.nodes["bag-count"].textContent, "10/10");
     assert.equal(f.nodes["sell-harvest"].textContent, "Sell ✦ 190");
     assert.equal(f.nodes["harvest-counter"].getAttribute("aria-label"), "Harvest bag: 10 of 10 crops");
+    const ripe = { ...full, patches: full.patches.map((patch, index) => index === 0 ?
+      { ...patch, content: { cropId: "wheat", plantedAt: 1000, readyAt: 2000, watered: false } } : patch) };
+    ui.render(ripe, "wheat", ripe.patches[0], 3000);
+    assert.equal(f.nodes["inspect-text"].textContent, "Bag full · Sell your harvest first");
     assert.equal(f.purchases[0].disabled, false);
     assert.equal(f.purchases[1].disabled, true);
     assert.equal(f.nodes["shop-panel"].hidden, false); // Buying doesn't close the shop.
