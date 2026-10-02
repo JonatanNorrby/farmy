@@ -4,6 +4,7 @@ export const FARM = Object.freeze({
   initialLevel: 2, maxLevel: 4, levelDepth: 2.2,
   landMargin: 1.4, expansionCosts: Object.freeze([85, 180]),
   patchRadius: .59, brushSpacing: .78, interactRadius: .67,
+  seedBrushRadius: .52,
   patchCost: 3, maxPatches: 256,
 });
 export function landBounds(level) {
