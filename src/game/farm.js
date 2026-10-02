@@ -18,7 +18,7 @@ export const isSprinkler = content => content?.kind === "sprinkler";
 
 // Purchases happen in the shop, not when the player clicks farmland.
 export function buyShopItem(state, id) {
-  const item = SHOP_ITEMS[id];
+  const item = Object.hasOwn(SHOP_ITEMS, id) ? SHOP_ITEMS[id] : null;
   if (!item) return failure(state, "Unknown shop item.");
   if (state.coins < item.cost) return failure(state, "Not enough coins.");
   if (state.inventory[id] > MAX_STOCK - item.quantity) return failure(state, "Storage is full.");
