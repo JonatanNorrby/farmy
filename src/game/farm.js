@@ -1,163 +1,175 @@
-import { CROPS, FARM, PLOT_COUNT, SPRINKLER, PLANTABLE_CROPS, PLOT_COST, STARTER_PLOTS } from "../config/crops.js";
+import { CROPS, FARM, SPRINKLER, PLANTABLE_CROPS, STARTER_PATCHES, landBounds } from "../config/crops.js";
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
+export const roundPosition = value => Math.round(value * 100) / 100;
 
 export function newFarm() {
-  const tilled = Array(PLOT_COUNT).fill(false);
-  for (const index of STARTER_PLOTS) tilled[index] = true;
-  return { version: SAVE_VERSION, coins: 64, harvested: 0, unlockedRows: FARM.initialRows, tilled, plots: Array(PLOT_COUNT).fill(null) };
-}
-function failure(state, message) { return { ok: false, state, message }; }
-function validIndex(index) { return Number.isInteger(index) && index >= 0 && index < PLOT_COUNT; }
-export function unlockedPlotCount(state) { return state.unlockedRows * FARM.columns; }
-export function isPlotUnlocked(state, index) {
-  return validIndex(index) && index < unlockedPlotCount(state);
-}
-// Ownership of land and preparation of a farm plot are independent.
-export function isFarmPlot(state, index) {
-  return isPlotUnlocked(state, index) && state.tilled[index] === true;
-}
-export function createPlot(state, index) {
-  if (!isPlotUnlocked(state, index)) return failure(state, "Expand land first.");
-  if (isFarmPlot(state, index) || state.plots[index]) return failure(state, "Plot already prepared.");
-  if (state.coins < PLOT_COST) return failure(state, "Need ✦ " + PLOT_COST + " to prepare a plot.");
-  const tilled = state.tilled.slice();
-  tilled[index] = true;
   return {
-    ok: true,
-    state: { ...state, coins: state.coins - PLOT_COST, tilled },
-    message: "🌱 Farm plot created",
+    version: SAVE_VERSION, coins: 64, harvested: 0, landLevel: FARM.initialLevel,
+    patches: STARTER_PATCHES.map(({ x, z }) => ({ x, z, content: null })),
   };
 }
-export function isSprinkler(plot) { return plot?.kind === "sprinkler"; }
+const failure = (state, message) => ({ ok: false, state, message });
+const validIndex = (state, index) => Number.isInteger(index) && index >= 0 && index < state.patches.length;
+const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+export const isSprinkler = content => content?.kind === "sprinkler";
 
-// Offsets are calculated in two dimensions to avoid wrapping from the end of
-// one row to the beginning of the next; works for edge and corner sprinklers.
-export function neighboringPlots(index) {
-  if (!validIndex(index)) return [];
-  const row = Math.floor(index / FARM.columns);
-  const col = index % FARM.columns;
-  const result = [];
-  for (let dr = -SPRINKLER.radius; dr <= SPRINKLER.radius; dr++) {
-    for (let dc = -SPRINKLER.radius; dc <= SPRINKLER.radius; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const r = row + dr, c = col + dc;
-      if (r >= 0 && r < FARM.rows && c >= 0 && c < FARM.columns) result.push(r * FARM.columns + c);
-    }
+export function onLand(state, point, inset = 0) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.z)) return false;
+  const b = landBounds(state.landLevel);
+  return point.x >= b.minX + inset && point.x <= b.maxX - inset &&
+    point.z >= b.minZ + inset && point.z <= b.maxZ - inset;
+}
+export function findPatchIndex(state, point, maxDistance = FARM.interactRadius) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.z)) return -1;
+  let match = -1, nearest = maxDistance;
+  for (let index = 0; index < state.patches.length; index++) {
+    const d = distance(point, state.patches[index]);
+    if (d <= nearest) { nearest = d; match = index; }
   }
-  return result;
+  return match;
 }
-export function coveredBySprinkler(state, index) {
-  return isPlotUnlocked(state, index) &&
-    neighboringPlots(index).some(neighbor => isPlotUnlocked(state, neighbor) && isSprinkler(state.plots[neighbor]));
-}
-
-// Share the same one-time watering reduction for manual and automatic watering.
-function wateredCrop(plot, now) {
-  if (!plot || isSprinkler(plot)) return null;
-  const crop = CROPS[plot.cropId];
-  if (!crop || plot.watered || now >= plot.readyAt) return null;
-  return { ...plot, watered: true, readyAt: Math.max(now + 2500, plot.readyAt - crop.growMs * .38) };
-}
-
 export function nextExpansionCost(state) {
-  return state.unlockedRows >= FARM.rows ? null : FARM.expansionCosts[state.unlockedRows - FARM.initialRows];
+  return state.landLevel >= FARM.maxLevel ? null :
+    FARM.expansionCosts[state.landLevel - FARM.initialLevel];
 }
 export function expandFarm(state) {
   const cost = nextExpansionCost(state);
   if (cost === null) return failure(state, "Farm fully expanded.");
   if (state.coins < cost) return failure(state, "Need ✦ " + cost + " to expand.");
   return {
-    ok: true,
-    state: { ...state, coins: state.coins - cost, unlockedRows: state.unlockedRows + 1 },
-    message: "🌿 +5 land tiles unlocked",
+    ok: true, state: { ...state, coins: state.coins - cost, landLevel: state.landLevel + 1 },
+    message: "🌿 More land unlocked",
   };
 }
-function withPlot(state, index, plot, extra = {}) {
-  const plots = state.plots.slice();
-  plots[index] = plot;
-  return { ...state, plots, ...extra };
-}
-
-export function placeSprinkler(state, index, now = Date.now()) {
-  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
-  if (state.plots[index]) return failure(state, "Plot already occupied.");
-  if (state.coins < SPRINKLER.cost) return failure(state, "Not enough coins.");
-  const plots = state.plots.slice();
-  plots[index] = { kind: "sprinkler" };
-  const wateredIndices = [];
-  for (const neighbor of neighboringPlots(index)) {
-    if (!isPlotUnlocked(state, neighbor)) continue;
-    const watered = wateredCrop(plots[neighbor], now);
-    if (!watered) continue;
-    plots[neighbor] = watered;
-    wateredIndices.push(neighbor);
-  }
+export function createPlot(state, point) {
+  if (!onLand(state, point, FARM.patchRadius)) return failure(state, "Expand land first.");
+  if (state.patches.length >= FARM.maxPatches) return failure(state, "Farm is full.");
+  if (findPatchIndex(state, point, FARM.brushSpacing) !== -1) return failure(state, "Already prepared.");
+  if (state.coins < FARM.patchCost) return failure(state, "Need ✦ " + FARM.patchCost + " for soil.");
+  const patch = { x: roundPosition(point.x), z: roundPosition(point.z), content: null };
   return {
     ok: true,
-    state: { ...state, plots, coins: state.coins - SPRINKLER.cost },
-    wateredIndices,
+    state: { ...state, coins: state.coins - FARM.patchCost, patches: [...state.patches, patch] },
+    changedIndices: [state.patches.length],
+    message: "🌱 Soil painted",
+  };
+}
+
+// A stroke samples its full line, so fast pointer movement cannot leave
+// visible holes. Repeat samples over existing soil are free and idempotent.
+export function paintSoil(state, from, to) {
+  if (![from, to].every(p => p && Number.isFinite(p.x) && Number.isFinite(p.z)))
+    return failure(state, "Point at the farm.");
+  const length = distance(from, to);
+  const segments = Math.max(1, Math.ceil(length / (FARM.brushSpacing * .42)));
+  let next = state;
+  const changedIndices = [];
+  let reason = "";
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const point = { x: from.x + (to.x - from.x) * t, z: from.z + (to.z - from.z) * t };
+    const result = createPlot(next, point);
+    if (result.ok) {
+      next = result.state;
+      changedIndices.push(...result.changedIndices);
+    } else if (result.message !== "Already prepared.") {
+      reason = result.message;
+      if (reason === "Farm is full." || reason.startsWith("Need ✦")) break;
+    }
+  }
+  return changedIndices.length
+    ? { ok: true, state: next, changedIndices, message: "🌱 Soil painted · " + changedIndices.length }
+    : failure(state, reason || "Already prepared.");
+}
+function withContent(state, index, content, extra = {}) {
+  const patches = state.patches.slice();
+  patches[index] = { ...patches[index], content };
+  return { ...state, patches, ...extra };
+}
+export function nearbySprinkler(state, index) {
+  if (!validIndex(state, index)) return -1;
+  return state.patches.findIndex((patch, other) =>
+    other !== index && isSprinkler(patch.content) &&
+    distance(patch, state.patches[index]) <= SPRINKLER.radius);
+}
+export function coveredBySprinkler(state, index) {
+  return nearbySprinkler(state, index) !== -1;
+}
+function wateredCrop(content, now) {
+  if (!content || isSprinkler(content)) return null;
+  const crop = CROPS[content.cropId];
+  if (!crop || content.watered || now >= content.readyAt) return null;
+  return { ...content, watered: true, readyAt: Math.max(now + 2500, content.readyAt - crop.growMs * .38) };
+}
+export function placeSprinkler(state, index, now = Date.now()) {
+  if (!validIndex(state, index)) return failure(state, "Paint soil first.");
+  if (state.patches[index].content) return failure(state, "Soil already occupied.");
+  if (state.coins < SPRINKLER.cost) return failure(state, "Not enough coins.");
+  let next = withContent(state, index, { kind: "sprinkler" }, { coins: state.coins - SPRINKLER.cost });
+  const wateredIndices = [];
+  for (let other = 0; other < next.patches.length; other++) {
+    if (other === index || distance(next.patches[index], next.patches[other]) > SPRINKLER.radius) continue;
+    const watered = wateredCrop(next.patches[other].content, now);
+    if (watered) {
+      next = withContent(next, other, watered);
+      wateredIndices.push(other);
+    }
+  }
+  return {
+    ok: true, state: next, wateredIndices,
     message: "💦 Sprinkler placed" + (wateredIndices.length ? " · " + wateredIndices.length + " watered" : ""),
   };
 }
-
 export function plant(state, index, cropId, now = Date.now()) {
-  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
+  if (!validIndex(state, index)) return failure(state, "Paint soil first.");
   if (!PLANTABLE_CROPS.includes(cropId)) return failure(state, "Only wheat can be planted.");
+  if (state.patches[index].content) return failure(state, "Soil already occupied.");
   const crop = CROPS[cropId];
-  if (state.plots[index]) return failure(state, "Plot already occupied.");
   if (state.coins < crop.cost) return failure(state, "Not enough coins.");
   const planted = { cropId, plantedAt: now, readyAt: now + crop.growMs, watered: false };
   const automatic = coveredBySprinkler(state, index) ? wateredCrop(planted, now) : null;
   return {
-    ok: true,
-    state: withPlot(state, index, automatic || planted, { coins: state.coins - crop.cost }),
+    ok: true, state: withContent(state, index, automatic || planted, { coins: state.coins - crop.cost }),
     wateredIndices: automatic ? [index] : [],
     message: crop.icon + " " + crop.name + " planted" + (automatic ? " · 💧" : ""),
   };
 }
-
 export function water(state, index, now = Date.now()) {
-  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
-  const plot = state.plots[index];
-  if (isSprinkler(plot)) return failure(state, "Sprinkler waters nearby crops.");
-  if (!plot) return failure(state, "Plant a seed first.");
-  if (now >= plot.readyAt) return failure(state, "Ready to harvest.");
-  if (plot.watered) return failure(state, "Already watered.");
+  if (!validIndex(state, index)) return failure(state, "Paint soil first.");
+  const content = state.patches[index].content;
+  if (isSprinkler(content)) return failure(state, "Sprinkler waters nearby crops.");
+  if (!content) return failure(state, "Plant a seed first.");
+  if (now >= content.readyAt) return failure(state, "Ready to harvest.");
+  if (content.watered) return failure(state, "Already watered.");
   return {
-    ok: true,
-    state: withPlot(state, index, wateredCrop(plot, now)),
-    wateredIndices: [index],
-    message: "💧 Watered",
+    ok: true, state: withContent(state, index, wateredCrop(content, now)),
+    wateredIndices: [index], message: "💧 Watered",
   };
 }
-
 export function harvest(state, index, now = Date.now()) {
-  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
-  const plot = state.plots[index];
-  if (isSprinkler(plot)) return failure(state, "Sprinkler occupies this plot.");
-  if (!plot) return failure(state, "Nothing to harvest.");
-  if (now < plot.readyAt) return failure(state, "Still growing.");
-  const crop = CROPS[plot.cropId];
+  if (!validIndex(state, index)) return failure(state, "Paint soil first.");
+  const content = state.patches[index].content;
+  if (isSprinkler(content)) return failure(state, "Sprinkler occupies this spot.");
+  if (!content) return failure(state, "Nothing to harvest.");
+  if (now < content.readyAt) return failure(state, "Still growing.");
   return {
     ok: true,
-    state: withPlot(state, index, null, { coins: state.coins + crop.reward, harvested: state.harvested + 1 }),
-    message: crop.icon + " Harvested · +✦ " + crop.reward,
+    state: withContent(state, index, null, {
+      coins: state.coins + CROPS[content.cropId].reward, harvested: state.harvested + 1,
+    }),
+    message: CROPS[content.cropId].icon + " Harvested · +✦ " + CROPS[content.cropId].reward,
   };
 }
-
-export function growthProgress(plot, now = Date.now()) {
-  if (!plot || isSprinkler(plot)) return 0;
-  return Math.max(0, Math.min(1, (now - plot.plantedAt) / Math.max(1, plot.readyAt - plot.plantedAt)));
+export function growthProgress(content, now = Date.now()) {
+  if (!content || isSprinkler(content)) return 0;
+  return Math.max(0, Math.min(1, (now - content.plantedAt) / Math.max(1, content.readyAt - content.plantedAt)));
 }
-
-// -1 empty/structure, 0 seedling, 1 sprout, 2 grown, 3 harvestable.
-export function growthStage(plot, now = Date.now()) {
-  if (!plot || isSprinkler(plot)) return -1;
-  const value = growthProgress(plot, now);
+export function growthStage(content, now = Date.now()) {
+  if (!content || isSprinkler(content)) return -1;
+  const value = growthProgress(content, now);
   return value >= 1 ? 3 : value < .25 ? 0 : value < .65 ? 1 : 2;
 }
-
-export function secondsRemaining(plot, now = Date.now()) {
-  return plot && !isSprinkler(plot) ? Math.max(0, Math.ceil((plot.readyAt - now) / 1000)) : 0;
+export function secondsRemaining(content, now = Date.now()) {
+  return content && !isSprinkler(content) ? Math.max(0, Math.ceil((content.readyAt - now) / 1000)) : 0;
 }
