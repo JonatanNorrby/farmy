@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DRAG_THRESHOLD_PX, KEY_PAN_SPEED, groundDelta, clampPan,
-  cameraPanBounds, createCameraMovement,
+  cameraPanBounds, createCameraMovement, pointerGestureMode, crossedDragThreshold,
 } from "../src/render/cameraMovement.js";
 import { FARM, landBounds } from "../src/config/crops.js";
 
@@ -92,4 +92,19 @@ test("movement clamps camera to the full farmland plus a navigation margin", () 
   assert.equal(camera.target.x, bounds.maxX);
   assert.equal(camera.target.z, bounds.maxZ);
   assert.deepEqual(clampPan({ x: 0, z: 0 }, bounds), { x: 0, z: 0 });
+});
+
+test("left clicks remain interactions, drags pan, and Plot painting is unaffected", () => {
+  assert.equal(pointerGestureMode(0, "wheat", true), "pending");
+  assert.equal(pointerGestureMode(0, "water", true), "pending");
+  assert.equal(pointerGestureMode(0, "sprinkler", true), "pending");
+  assert.equal(pointerGestureMode(0, "plot", true), "paint");
+  assert.equal(pointerGestureMode(0, "plot", false), "pending"); // Click can expand, drag pans.
+  assert.equal(pointerGestureMode(2, "plot", true), "pan");
+  assert.equal(pointerGestureMode(2, "wheat", true), "pan");
+  assert.equal(pointerGestureMode(1, "wheat", true), null);
+  assert.equal(crossedDragThreshold(100, 100, 105, 100), false);
+  assert.equal(crossedDragThreshold(100, 100, 106, 100), true);
+  assert.equal(crossedDragThreshold(100, 100, 104, 105), true);
+  assert.equal(crossedDragThreshold(100, 100, 100, 100), false);
 });
