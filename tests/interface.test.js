@@ -34,7 +34,7 @@ class FakeElement {
   contains(target) { return target === this; }
 }
 function fixture() {
-  const ids = ["coins", "harvested", "inspector", "plot-detail", "inspect-title",
+  const ids = ["coins", "harvested", "harvest-counter", "bag-count", "sell-harvest", "inspector", "plot-detail", "inspect-title",
     "inspect-text", "inspect-progress", "toast", "expand-farm", "settings-toggle",
     "settings-panel", "settings-close", "brightness", "brightness-value", "brightness-reset",
     "shop-toggle", "shop-panel", "shop-close", "shop-coins", "stock-wheat",
@@ -71,14 +71,17 @@ test("the Shop toggles accessible Seeds/Buildings tabs and coexists with Setting
   const f = fixture();
   try {
     const bought = [];
+    let sellCalls = 0;
     const ui = createInterface({
-      onToolChange() {}, onBuy: id => bought.push(id), onReset() {},
+      onToolChange() {}, onBuy: id => bought.push(id), onSell: () => { sellCalls++; }, onReset() {},
       onExpand() {}, onBrightnessChange() {}, brightness: 100,
     });
     const state = newFarm();
     ui.render(state, "wheat", state.patches[0]);
     assert.equal(f.nodes["inspect-text"].textContent, "Buy a wheat seed bag in Shop → Seeds.");
     assert.equal(f.nodes["shop-coins"].textContent, "✦ 64");
+    assert.equal(f.nodes["bag-count"].textContent, "0/10");
+    assert.equal(f.nodes["sell-harvest"].disabled, true);
     assert.equal(f.nodes["stock-wheat"].textContent, 0);
     assert.equal(f.tools[0].cost.textContent, "× 0");
     assert.equal(f.purchases[0].disabled, false);
@@ -102,6 +105,18 @@ test("the Shop toggles accessible Seeds/Buildings tabs and coexists with Setting
     assert.equal(f.tools[0].cost.textContent, "× 10");
     assert.equal(f.nodes["stock-wheat"].textContent, 10);
     assert.equal(f.nodes["shop-coins"].textContent, "✦ 34");
+    const filled = { ...purchased, harvestBag: { ...purchased.harvestBag, wheat: 2 } };
+    ui.render(filled, "wheat", filled.patches[0]);
+    assert.equal(f.nodes["bag-count"].textContent, "2/10");
+    assert.equal(f.nodes["sell-harvest"].disabled, false);
+    assert.equal(f.nodes["sell-harvest"].textContent, "Sell ✦ 38");
+    f.nodes["sell-harvest"].fire("click");
+    assert.equal(sellCalls, 1);
+    const full = { ...purchased, harvestBag: { ...purchased.harvestBag, wheat: 10 } };
+    ui.render(full, "wheat", null);
+    assert.equal(f.nodes["bag-count"].textContent, "10/10");
+    assert.equal(f.nodes["sell-harvest"].textContent, "Sell ✦ 190");
+    assert.equal(f.nodes["harvest-counter"].getAttribute("aria-label"), "Harvest bag: 10 of 10 crops");
     assert.equal(f.purchases[0].disabled, false);
     assert.equal(f.purchases[1].disabled, true);
     assert.equal(f.nodes["shop-panel"].hidden, false); // Buying doesn't close the shop.
