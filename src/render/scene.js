@@ -7,19 +7,25 @@ export function createScene(canvas) {
   // Limit high-DPI rendering cost while keeping crisp graphics on common screens.
   engine.setHardwareScalingLevel(Math.max(1, (window.devicePixelRatio || 1) / 1.5));
   const scene = new B.Scene(engine);
-  scene.clearColor = new B.Color4(.86, .93, .82, 1);
-  scene.ambientColor = new B.Color3(.68, .69, .58);
+  // Muted late-afternoon atmosphere rather than the old bright midday look.
+  scene.clearColor = new B.Color4(.54, .58, .49, 1);
+  scene.ambientColor = new B.Color3(.30, .25, .19);
   scene.fogMode = B.Scene.FOGMODE_EXP2;
-  scene.fogColor = new B.Color3(.86, .93, .82);
+  scene.fogColor = new B.Color3(.54, .58, .49);
   scene.fogDensity = .003;
+  scene.imageProcessingConfiguration.exposure = .76;
+  scene.imageProcessingConfiguration.contrast = 1.12;
 
-  const sun = new B.DirectionalLight("afternoon sun", new B.Vector3(-.6, -1, -.45), scene);
-  sun.position = new B.Vector3(-12, 22, 6);
-  sun.intensity = 1.35;
-  sun.diffuse = new B.Color3(1, .94, .79);
-  const sky = new B.HemisphericLight("soft sky", new B.Vector3(0, 1, 0), scene);
-  sky.intensity = .83;
-  sky.groundColor = new B.Color3(.49, .61, .44);
+  // Lower-angle amber sunlight with cooler, much dimmer fill for depth.
+  const sun = new B.DirectionalLight("golden hour sun", new B.Vector3(.68, -.74, -.32), scene);
+  sun.position = new B.Vector3(-18, 15, 8);
+  sun.intensity = 1.0;
+  sun.diffuse = new B.Color3(1, .70, .43);
+  sun.specular = new B.Color3(.86, .53, .26);
+  const sky = new B.HemisphericLight("soft dusk fill", new B.Vector3(0, 1, 0), scene);
+  sky.intensity = .37;
+  sky.diffuse = new B.Color3(.72, .75, .80);
+  sky.groundColor = new B.Color3(.40, .29, .22);
 
   const camera = new B.ArcRotateCamera("isometric", Math.PI / 4, 1.03, 32, new B.Vector3(0, .1, -.2), scene);
   camera.mode = B.Camera.ORTHOGRAPHIC_CAMERA;
