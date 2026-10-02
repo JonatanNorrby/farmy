@@ -8,10 +8,14 @@ export const KEY_PAN_SPEED = 4.5; // Orthographic screen-world units / second.
 
 // Delay left-click actions until release so dragging a tool cannot
 // accidentally plant, water, harvest or purchase land.
-export function pointerGestureMode(button, tool, paintable) {
+export function pointerGestureMode(button, tool, paintable, seedable = false) {
   if (button === 2) return "pan";
   if (button !== 0) return null;
-  return tool === "plot" && paintable ? "paint" : "pending";
+  if (tool === "plot" && paintable) return "paint";
+  // A short wheat click remains a normal crop interaction; only movement past
+  // the drag threshold changes it to seed painting.
+  if (tool === "wheat" && seedable) return "seed-pending";
+  return "pending";
 }
 export function crossedDragThreshold(startX, startY, x, y) {
   return Math.hypot(x - startX, y - startY) >= DRAG_THRESHOLD_PX;
