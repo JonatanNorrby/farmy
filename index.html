@@ -17,65 +17,51 @@
     <header class="topbar">
       <div class="identity">
         <div class="brand-mark" aria-hidden="true">✿</div>
-        <div><strong class="brand">farmy<span>.</span></strong><div class="brand-caption">a little place to grow</div></div>
+        <strong class="brand">farmy<span>.</span></strong>
+        <button class="reset-button" id="reset" type="button" title="Start a new garden" aria-label="Start a new garden">↺</button>
       </div>
       <div class="counters" aria-live="polite">
-        <div class="counter"><span class="counter-icon">✦</span><div><small>YOUR COINS</small><strong id="coins">64</strong></div></div>
-        <div class="counter"><span class="counter-icon basket">❀</span><div><small>HARVESTED</small><strong id="harvested">0</strong></div></div>
+        <div class="counter"><span class="counter-icon">✦</span><div><small>COINS</small><strong id="coins">64</strong></div></div>
+        <div class="counter"><span class="counter-icon basket">❀</span><div><small>HARVESTS</small><strong id="harvested">0</strong></div></div>
       </div>
     </header>
 
-    <aside class="info-panel">
-      <div class="eyebrow"><span class="live-dot"></span> YOUR LITTLE FARM</div>
-      <h1>Make room<br>for <em>growing.</em></h1>
-      <p>Plant a seed, give it a drink, and watch your garden come to life. There's no rush here.</p>
-      <div class="info-divider"></div>
-      <div class="guide-row"><span>01</span> Choose a seed below</div>
-      <div class="guide-row"><span>02</span> Click an empty soil patch</div>
-      <div class="guide-row"><span>03</span> Water to help it grow</div>
-      <div class="guide-row"><span>04</span> Click ripe crops to harvest</div>
-      <button class="text-button" id="reset" type="button">↺ &nbsp; Start a new garden</button>
-    </aside>
-
-    <aside id="inspector" class="inspector" aria-live="polite">
-      <span class="eyebrow">GARDEN NOTES</span>
-      <div id="inspect-title" class="inspect-title">Your garden awaits</div>
-      <p id="inspect-text">Hover over or tap a garden plot to see what's happening.</p>
-      <div class="progress-track"><div id="inspect-progress" class="progress-fill"></div></div>
+    <aside id="inspector" class="inspector" aria-label="Selected plot and expansion">
+      <div id="plot-detail" class="plot-detail" hidden>
+        <div id="inspect-title" class="inspect-title"></div>
+        <p id="inspect-text"></p>
+        <div class="progress-track"><div id="inspect-progress" class="progress-fill"></div></div>
+      </div>
       <button id="expand-farm" class="expand-button" type="button" aria-label="Unlock the next row of farm plots">↗ Unlock 5 plots</button>
     </aside>
 
-    <div class="world-label" aria-hidden="true"><span>✳</span> <b>HOME SWEET HOME</b><small>the sun is always shining</small></div>
-
     <nav class="toolbar" aria-label="Garden tools">
-      <div class="toolbar-heading"><span>YOUR GARDEN TOOLS</span><span class="shortcut-hint">KEYS 1 — 4</span></div>
       <div class="tools">
         <button class="tool selected" type="button" data-tool="carrot" aria-pressed="true">
           <span class="hotkey">1</span><span class="tool-icon carrot">🥕</span>
-          <span class="tool-details"><strong>Carrot</strong><small>Quick & sweet</small></span>
+          <span class="tool-details"><strong>Carrot</strong></span>
           <span class="tool-cost">✦ 4</span>
         </button>
         <button class="tool" type="button" data-tool="wheat" aria-pressed="false">
           <span class="hotkey">2</span><span class="tool-icon wheat">🌾</span>
-          <span class="tool-details"><strong>Wheat</strong><small>Golden fields</small></span>
+          <span class="tool-details"><strong>Wheat</strong></span>
           <span class="tool-cost">✦ 6</span>
         </button>
         <button class="tool" type="button" data-tool="pumpkin" aria-pressed="false">
           <span class="hotkey">3</span><span class="tool-icon pumpkin">🎃</span>
-          <span class="tool-details"><strong>Pumpkin</strong><small>Worth the wait</small></span>
+          <span class="tool-details"><strong>Pumpkin</strong></span>
           <span class="tool-cost">✦ 9</span>
         </button>
         <button class="tool watering" type="button" data-tool="water" aria-pressed="false">
           <span class="hotkey">4</span><span class="tool-icon water">💧</span>
-          <span class="tool-details"><strong>Water</strong><small>Grow faster</small></span>
+          <span class="tool-details"><strong>Water</strong></span>
           <span class="tool-cost free">FREE</span>
         </button>
       </div>
     </nav>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <div class="bottom-note">MADE FOR SLOW AFTERNOONS <span>✳</span> SCROLL TO ZOOM</div>
-    <div id="loading" class="loading"><div class="loading-flower">✿</div><strong>Growing your little world...</strong><p id="loading-detail">Getting the garden ready</p></div>
+    <div id="loading" class="loading"><div class="loading-flower">✿</div><strong>Loading farm</strong><p id="loading-detail">Loading 3D scene</p></div>
   </main>
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script type="module" src="./src/main.js"></script>
