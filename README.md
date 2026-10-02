@@ -12,6 +12,7 @@ A cozy, isometric 3D farming prototype built with Babylon.js and plain HTML/CSS/
 - Old v1 saves migrate automatically with all 20 original plots unlocked, preserving crops, harvests and coins.
 - Progress is automatically saved to this browser (localStorage). Crops also grow while the page is closed.
 - Mouse wheel zooms; the game works with touch controls too.
+- Open **⚙ Settings** beside the logo to adjust **Brightness (50–150%)** in real time, or reset it to **100%**. The warm sunlight colors stay the same; only scene exposure changes. This preference persists across reloads and is stored separately from farm progress.
 
 ## Run locally
 Use a local HTTP server (ES modules require one). For example:
@@ -30,13 +31,15 @@ src/main.js                Composition root, event wiring, render loop
 src/config/crops.js        Crop balancing and row-expansion costs/geometry
 src/game/farm.js           Pure, testable farm actions, growth and expansion logic
 src/game/storage.js        Defensive save/load with v1/v2 → v3 migration
+src/game/settings.js       Independent local display preference and exposure mapping
 src/render/scene.js        Babylon engine scene, lighting, camera
 src/render/world.js        Ground, farm plots, cottage, vegetation
 src/render/cropMeshes.js   Procedural 3D crop models
 src/render/watering.js     Reusable, self-cleaning watering particles
 src/render/sprinklerMeshes.js Procedural rotating sprinkler
 src/ui/interface.js        UI events and presentation
-tests/farm.test.js         Node built-in test runner
+tests/farm.test.js         Farm logic tests
+tests/settings.test.js     Brightness and display preference tests
 .github/workflows/pages.yml Static GitHub Pages deployment
 ```
 
