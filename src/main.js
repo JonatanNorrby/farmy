@@ -1,5 +1,5 @@
-import { newFarm, buyShopItem, sellHarvest, plant, water, harvest, expandFarm, onLand, findPatchIndex,
-  paintSoil, paintSeeds, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
+import { newFarm, buyShopItem, sellHarvest, plant, water, harvest, expandFarm, onLand, isPrepared,
+  findPlantIndex, findSprinklerIndex, paintSoil, paintSeeds, placeSprinkler, nearbySprinkler } from "./game/farm.js";
 import { FARM } from "./config/crops.js";
 import { pointerGestureMode, crossedDragThreshold } from "./render/cameraMovement.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
@@ -23,7 +23,8 @@ function boot() {
 
   function refresh(now = Date.now()) {
     world.updateLand(state.landLevel);
-    world.syncPatches(state.patches, now);
+    world.syncSoil(state.soil);
+    world.syncEntities(state.plants, state.sprinklers, now);
     ui.render(state, selectedTool, hovered, now);
   }
   const ui = createInterface({
@@ -75,7 +76,7 @@ function boot() {
       ? { x: hit.pickedPoint.x, z: hit.pickedPoint.z }
       : null;
   }
-  function accept(result, now = Date.now(), announce = true, sourceIndex = -1) {
+  function accept(result, now = Date.now(), announce = true) {
     if (result.ok) {
       state = result.state;
       saveFarm(state);
@@ -85,8 +86,8 @@ function boot() {
           world.playWatering(targetIndex);
           continue;
         }
-        const sprinklerIndex = sourceIndex >= 0 && isSprinkler(state.patches[sourceIndex]?.content)
-          ? sourceIndex : nearbySprinkler(state, targetIndex);
+        const sprinklerIndex = result.sprinklerIndex ??
+          nearbySprinkler(state, state.plants[targetIndex]);
         if (sprinklerIndex < 0) world.playWatering(targetIndex);
         else world.playSprinklerWatering(sprinklerIndex, targetIndex);
       }
@@ -96,7 +97,7 @@ function boot() {
   }
   function interact(point) {
     const now = Date.now();
-    if (!onLand(state, point, FARM.patchRadius)) {
+    if (!onLand(state, point)) {
       accept(expandFarm(state), now);
       return;
     }
@@ -104,20 +105,31 @@ function boot() {
       accept(paintSoil(state, point, point), now);
       return;
     }
-    const index = findPatchIndex(state, point);
-    if (index === -1) {
-      ui.notify("Paint soil first · Plot (4)");
+    const cropIndex = findPlantIndex(state, point);
+    const sprinklerIndex = findSprinklerIndex(state, point);
+    const crop = cropIndex >= 0 ? state.plants[cropIndex] : null;
+    const sprinkler = sprinklerIndex >= 0 ? state.sprinklers[sprinklerIndex] : null;
+    const sprinklerFirst = sprinkler && (!crop ||
+      Math.hypot(sprinkler.x - point.x, sprinkler.z - point.z) <=
+      Math.hypot(crop.x - point.x, crop.z - point.z));
+    if (sprinklerFirst) {
+      ui.notify("💦 Sprinkler active");
       return;
     }
-    const content = state.patches[index].content;
-    let result;
-    if (isSprinkler(content)) result = { ok: false, message: "💦 Sprinkler active" };
-    else if (content && now >= content.readyAt) result = harvest(state, index, now);
-    else if (selectedTool === "water") result = water(state, index, now);
-    else if (content) result = { ok: false, message: "Already planted · Water or harvest" };
-    else if (selectedTool === "sprinkler") result = placeSprinkler(state, index, now);
-    else result = plant(state, index, selectedTool, now);
-    accept(result, now, true, index);
+    if (crop) {
+      const result = now >= crop.readyAt ? harvest(state, cropIndex, now) :
+        selectedTool === "water" ? water(state, cropIndex, now) :
+        { ok: false, message: "Already planted · Water or harvest" };
+      accept(result, now);
+      return;
+    }
+    if (selectedTool === "water") {
+      ui.notify("Select a growing crop.");
+    } else if (selectedTool === "sprinkler") {
+      accept(placeSprinkler(state, point, now), now);
+    } else {
+      accept(plant(state, point, "wheat", now), now);
+    }
   }
 
   // A short press is still a normal farm interaction (including harvesting).
@@ -146,7 +158,7 @@ function boot() {
     const point = pointFromPointer();
     const onOwnedLand = onLand(state, point, FARM.patchRadius);
     const seedable = selectedTool === "wheat" && state.inventory.wheat > 0 &&
-      findPatchIndex(state, point, FARM.seedBrushRadius) !== -1;
+      isPrepared(state, point);
     const mode = pointerGestureMode(event.button, selectedTool, onOwnedLand, seedable);
     if (!mode) return;
     gesture = {
@@ -212,7 +224,7 @@ function boot() {
     hovered = point;
     world.setHover(point);
     const seedHover = selectedTool === "wheat" && state.inventory.wheat > 0 &&
-      findPatchIndex(state, point, FARM.seedBrushRadius) !== -1;
+      isPrepared(state, point);
     canvas.style.cursor = selectedTool === "plot" || seedHover ? "crosshair" : "grab";
     ui.render(state, selectedTool, hovered);
   }
@@ -282,7 +294,7 @@ function boot() {
     }
     if (now - lastTick > 250) {
       lastTick = now;
-      world.syncPatches(state.patches, now);
+      world.syncEntities(state.plants, state.sprinklers, now);
       ui.render(state, selectedTool, hovered, now);
     }
     world.animate(performance.now());
