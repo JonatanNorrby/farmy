@@ -151,7 +151,7 @@ export function createInterface({
       button.setAttribute("aria-pressed", String(active));
       if (id === "wheat" || id === "sprinkler") {
         button.querySelector(".tool-cost").textContent = "× " + state.inventory[id];
-        button.title = state.inventory[id] ? "In stock: " + state.inventory[id] : "Out of stock · Buy in Shop";
+        button.title = state.inventory[id] ? (id === "wheat" ? "Click or drag over prepared soil · " : "In stock: ") + state.inventory[id] : "Out of stock · Buy in Shop";
       }
     }
     const expansionCost = nextExpansionCost(state);
@@ -190,7 +190,7 @@ export function createInterface({
         tool === SPRINKLER.id
           ? state.inventory.sprinkler ? "Place sprinkler · × " + state.inventory.sprinkler : "Buy a sprinkler in Shop → Buildings." :
         tool === "plot" ? "Already painted · Select Wheat (1)." :
-        state.inventory.wheat ? "Plant wheat · × " + state.inventory.wheat + " seeds" : "Buy a wheat seed bag in Shop → Seeds.";
+        state.inventory.wheat ? "Click or drag to sow · × " + state.inventory.wheat + " seeds" : "Buy a wheat seed bag in Shop → Seeds.";
       progress.style.width = "0%";
       return;
     }
