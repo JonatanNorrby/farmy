@@ -11,7 +11,7 @@ function boot() {
   const { B, engine, scene, camera, resize } = createScene(canvas);
   const world = createWorld(scene);
   let state = loadFarm();
-  let selectedTool = "carrot";
+  let selectedTool = "wheat";
   let hovered = null;
   let lastTick = 0;
 
@@ -118,7 +118,7 @@ function boot() {
   window.addEventListener("keydown", event => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
-    const choices = { "1": "carrot", "2": "wheat", "3": "pumpkin", "4": "water", "5": "sprinkler" };
+    const choices = { "1": "wheat", "2": "water", "3": "sprinkler" };
     if (choices[event.key]) {
       selectedTool = choices[event.key];
       ui.render(state, selectedTool, hovered);
