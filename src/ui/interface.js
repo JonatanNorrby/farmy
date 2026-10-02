@@ -1,6 +1,6 @@
-import { CROPS, SPRINKLER } from "../config/crops.js";
+import { CROPS, SPRINKLER, PLOT_COST } from "../config/crops.js";
 import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
-import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked, isSprinkler } from "../game/farm.js";
+import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked, isFarmPlot, isSprinkler } from "../game/farm.js";
 
 export function createInterface({ onToolChange, onReset, onExpand, onBrightnessChange, brightness = DEFAULT_BRIGHTNESS }) {
   const coinLabel = document.querySelector("#coins");
@@ -57,7 +57,7 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
 
   for (const button of buttons) {
     const id = button.dataset.tool;
-    if (CROPS[id] || id === SPRINKLER.id) button.querySelector(".tool-cost").textContent = "✦ " + (CROPS[id] || SPRINKLER).cost;
+    if (CROPS[id] || id === SPRINKLER.id || id === "plot") button.querySelector(".tool-cost").textContent = "✦ " + (id === "plot" ? PLOT_COST : (CROPS[id] || SPRINKLER).cost);
     button.addEventListener("click", () => onToolChange(id));
   }
   expandButton.addEventListener("click", onExpand);
@@ -80,11 +80,11 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
     const expansionCost = nextExpansionCost(state);
     expandButton.hidden = expansionCost === null;
     if (expansionCost !== null) {
-      expandButton.textContent = "↗ +5 plots · ✦ " + expansionCost;
+      expandButton.textContent = "↗ +5 land · ✦ " + expansionCost;
       expandButton.disabled = state.coins < expansionCost;
       expandButton.title = state.coins < expansionCost
         ? "Requires " + expansionCost + " coins"
-        : "Unlock the next row";
+        : "Expand the underlying farm land";
     }
     for (const button of buttons) {
       const active = button.dataset.tool === tool;
@@ -99,8 +99,17 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
 
     if (!isPlotUnlocked(state, hovered)) {
       progress.parentElement.hidden = true;
-      title.textContent = "Locked land";
-      detail.textContent = "Unlock the next row to plant here.";
+      title.textContent = "Unowned land";
+      detail.textContent = "Expand your land first · ✦ " + expansionCost;
+      progress.style.width = "0%";
+      return;
+    }
+    if (!isFarmPlot(state, hovered)) {
+      progress.parentElement.hidden = true;
+      title.textContent = "Grass";
+      detail.textContent = tool === "plot"
+        ? "Create plot · ✦ " + PLOT_COST
+        : "Use Plot (4) to prepare soil here.";
       progress.style.width = "0%";
       return;
     }
@@ -108,8 +117,9 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
     if (!plot) {
       progress.parentElement.hidden = true;
       title.textContent = "Empty plot";
-      detail.textContent = tool === "water" ? "Select a seed." :
+      detail.textContent = tool === "water" ? "Select Wheat (1)." :
         tool === SPRINKLER.id ? "Place sprinkler · ✦ " + SPRINKLER.cost :
+        tool === "plot" ? "Already prepared · Select Wheat (1)." :
         "Plant " + CROPS[tool].name.toLowerCase() + " · ✦ " + CROPS[tool].cost;
       progress.style.width = "0%";
       return;
