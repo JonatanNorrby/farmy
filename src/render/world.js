@@ -1,125 +1,134 @@
-import { FARM, plotPosition, PLOT_COUNT } from "../config/crops.js";
+import { FARM, landBounds } from "../config/crops.js";
+import { growthStage } from "../game/farm.js";
 import { buildCrop, createCropMaterials } from "./cropMeshes.js";
 import { createWateringEffect } from "./watering.js";
 import { buildSprinkler, createSprinklerMaterials } from "./sprinklerMeshes.js";
 
+// Continuous ground + circular, overlapping brush marks; no selectable cells.
 export function createWorld(scene) {
   const B = globalThis.BABYLON;
-  const materials = {};
-  // Only farm materials remain. Crop and sprinkler palettes live in their
-  // own render modules and do not need unrelated world scenery.
-  const colors = {
-    base: "#68865f", field: "#7e9c68", plotEdge: "#ab895e",
-    soil: "#6c533d", furrow: "#59442f", ownedGrass: "#77946a",
-    lockedGrass: "#66875d", cream: "#e9d2a5",
+  const palette = {
+    base: "#68865f", field: "#7e9c68", soil: "#665039",
+    furrow: "#59442f", marker: "#e9d2a5",
   };
-  for (const [key, hex] of Object.entries(colors)) {
-    const m = new B.StandardMaterial(key, scene);
-    m.diffuseColor = B.Color3.FromHexString(hex);
-    m.specularColor = new B.Color3(.035,.035,.025);
-    materials[key] = m;
-  }
+  const materials = Object.fromEntries(Object.entries(palette).map(([name, hex]) => {
+    const material = new B.StandardMaterial("farm-" + name, scene);
+    material.diffuseColor = B.Color3.FromHexString(hex);
+    material.specularColor = new B.Color3(.035, .035, .025);
+    return [name, material];
+  }));
+  materials.marker.alpha = .45;
+  materials.marker.backFaceCulling = false;
   const cropMaterials = createCropMaterials(scene);
   const sprinklerMaterials = createSprinklerMaterials(scene);
   const wateringEffect = createWateringEffect(scene);
 
-  function box(name, w, h, d, x, y, z, material, parent) {
-    const mesh = B.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
-    mesh.position.set(x,y,z); mesh.material = material; mesh.isPickable = false;
+  function box(name, width, height, depth, x, y, z, material, parent) {
+    const mesh = B.MeshBuilder.CreateBox(name, { width, height, depth }, scene);
+    mesh.position.set(x, y, z);
+    mesh.material = material;
+    mesh.isPickable = false;
     if (parent) mesh.parent = parent;
     return mesh;
   }
-  // A plain foundation under the potential farmland, with no scenery beyond
-  // its bounds. The owned portion is shown by the lawn expanding over it.
-  const farmCenterX = FARM.firstX + (FARM.columns - 1) * FARM.spacing / 2;
-  const farmWidth = FARM.columns * FARM.spacing + 1.45;
-  const farmDepth = FARM.rows * FARM.spacing + 1.4;
-  const baseCenterZ = FARM.firstZ + (FARM.rows - 1) * FARM.spacing / 2;
-  box("farm foundation", farmWidth, .24, farmDepth,
-    farmCenterX, -.04, baseCenterZ, materials.base);
-  const farmLawn = box("owned farm lawn", farmWidth, .035, farmDepth,
-    farmCenterX, .111, baseCenterZ, materials.field);
-
-  // All twenty potential cells are pickable. Land ownership and preparation
-  // are separate: owned grass turns into tilled soil only where the player builds a plot.
-  const plots = [];
-  for (let i = 0; i < PLOT_COUNT; i++) {
-    const p = plotPosition(i);
-    const edge = box("plot timber edge " + i, 2.03, .15, 2.03, p.x, .20, p.z, materials.plotEdge);
-    const soil = box("clickable garden patch " + i, 1.86, .09, 1.86, p.x, .292, p.z, materials.soil);
-    soil.isPickable = true;
-    soil.metadata = { plotIndex: i };
-    const furrows = [-.49, 0, .49].map(dz =>
-      box("soft tilled soil", 1.50, .04, .13, p.x, .354, p.z + dz, materials.furrow));
-    plots.push({ soil, edge, furrows, unlocked: null, prepared: null, root: null,
-      sprinklerHead: null, stage: -99, cropId: null, position: p });
-  }
-  function updateExpansion(unlockedRows, tilled) {
-    // Only the underlying farm lawn expands. New land starts as grass and
-    // individual plot placement reveals soil, timber borders and furrows.
-    farmLawn.position.z = FARM.firstZ + (unlockedRows - 1) * FARM.spacing / 2;
-    const lawnDepth = unlockedRows * FARM.spacing + 1.4;
-    farmLawn.scaling.z = lawnDepth / farmDepth;
-    const count = unlockedRows * FARM.columns;
-    for (let i = 0; i < plots.length; i++) {
-      const view = plots[i], unlocked = i < count, prepared = unlocked && tilled[i] === true;
-      if (view.unlocked === unlocked && view.prepared === prepared) continue;
-      view.unlocked = unlocked;
-      view.prepared = prepared;
-      view.soil.material = !unlocked ? materials.lockedGrass : prepared ? materials.soil : materials.ownedGrass;
-      view.edge.setEnabled(prepared);
-      view.furrows.forEach(mesh => mesh.setEnabled(prepared));
-    }
+  const full = landBounds(FARM.maxLevel);
+  const width = full.maxX - full.minX;
+  const depth = full.maxZ - full.minZ;
+  const centerX = (full.minX + full.maxX) / 2;
+  const centerZ = (full.minZ + full.maxZ) / 2;
+  const ground = box("continuous farm ground", width, .20, depth,
+    centerX, -.06, centerZ, materials.base);
+  ground.isPickable = true;
+  ground.metadata = { farmSurface: true };
+  const owned = box("owned farm surface", width, .028, depth,
+    centerX, .058, centerZ, materials.field);
+  let renderedLevel = null;
+  function updateLand(level) {
+    if (renderedLevel === level) return;
+    const bounds = landBounds(level);
+    const ownedDepth = bounds.maxZ - bounds.minZ;
+    owned.position.z = (bounds.maxZ + bounds.minZ) / 2;
+    owned.scaling.z = ownedDepth / depth;
+    renderedLevel = level;
   }
 
-  const marker = new B.TransformNode("hover outline",scene);
-  for (const [x,z,w,d] of [[0,-1.035,2.07,.055],[0,1.035,2.07,.055],[-1.035,0,.055,2.07],[1.035,0,.055,2.07]]) {
-    box("plot highlight", w,.045,d,x,.39,z,materials.cream,marker);
-  }
+  const marker = B.MeshBuilder.CreateCylinder("round soil brush", {
+    diameter: FARM.patchRadius * 2, height: .01, tessellation: 20,
+  }, scene);
+  marker.material = materials.marker;
+  marker.isPickable = false;
   marker.setEnabled(false);
-  function setHover(index) {
-    if (index === null || index < 0 || index >= plots.length) { marker.setEnabled(false); return; }
-    const pos = plots[index].position;
-    marker.position.set(pos.x, 0, pos.z);
+  function setHover(point) {
+    if (!point) { marker.setEnabled(false); return; }
+    marker.position.set(point.x, .185, point.z);
     marker.setEnabled(true);
   }
-  function updatePlot(index, plot, stage) {
-    const view = plots[index];
-    // Structures have their own cache key: the sprinkler cannot be mistaken
-    // for an empty plot (both otherwise have a growth stage of -1).
-    const displayId = plot?.kind === "sprinkler" ? "sprinkler" : plot?.cropId ?? null;
-    if (view.stage === stage && view.cropId === displayId) return;
+  const views = [];
+  function createSoil(patch, index) {
+    const circle = B.MeshBuilder.CreateCylinder("painted soil " + index, {
+      diameter: FARM.patchRadius * 2, height: .075, tessellation: 12,
+    }, scene);
+    circle.position.set(patch.x, .13, patch.z);
+    circle.material = materials.soil;
+    circle.isPickable = false;
+    const furrows = [];
+    for (const offset of [-.21, 0, .21]) {
+      furrows.push(box("soft soil furrow", .78, .012, .07,
+        patch.x, .177, patch.z + offset, materials.furrow));
+    }
+    return { x: patch.x, z: patch.z, circle, furrows, root: null,
+      sprinklerHead: null, stage: -99, displayId: null };
+  }
+  function clearRoot(view) {
     if (view.root) view.root.dispose();
     view.root = null;
     view.sprinklerHead = null;
+  }
+  function updatePatch(index, patch, now) {
+    const view = views[index];
+    const content = patch.content;
+    const stage = growthStage(content, now);
+    const displayId = content?.kind === "sprinkler" ? "sprinkler" : content?.cropId ?? null;
+    if (view.stage === stage && view.displayId === displayId) return;
+    clearRoot(view);
     view.stage = stage;
-    view.cropId = displayId;
-    if (!plot) return;
-    const root = new B.TransformNode("plot object " + index, scene);
-    root.position.set(view.position.x, .37, view.position.z);
+    view.displayId = displayId;
+    if (!content) return;
+    const root = new B.TransformNode("farm crop " + index, scene);
+    root.position.set(patch.x, .18, patch.z);
     if (displayId === "sprinkler") {
       view.sprinklerHead = buildSprinkler(scene, root, sprinklerMaterials);
     } else {
-      buildCrop(scene, root, plot.cropId, stage, cropMaterials);
+      buildCrop(scene, root, content.cropId, stage, cropMaterials);
     }
     view.root = root;
   }
-
-  function playWatering(index) {
-    const plot = plots[index];
-    if (plot) wateringEffect.play(plot.position);
-  }
-  function playSprinklerWatering(sourceIndex, targetIndex) {
-    const source = plots[sourceIndex], target = plots[targetIndex];
-    if (source && target) wateringEffect.spray(source.position, target.position);
-  }
-
-  function animate(ms) {
-    for (let i=0;i<plots.length;i++) {
-      const view = plots[i];
-      if (view.sprinklerHead) view.sprinklerHead.rotation.y = ms * .0011 + i * .23;
-      else if (view.root) view.root.rotation.z = Math.sin(ms*.00125 + i*.7) * .024;
+  function syncPatches(patches, now = Date.now()) {
+    while (views.length > patches.length) {
+      const view = views.pop();
+      clearRoot(view);
+      view.circle.dispose();
+      for (const mesh of view.furrows) mesh.dispose();
+    }
+    for (let index = 0; index < patches.length; index++) {
+      const patch = patches[index];
+      if (!views[index]) views.push(createSoil(patch, index));
+      updatePatch(index, patch, now);
     }
   }
-  return { plots, setHover, updatePlot, updateExpansion, playWatering, playSprinklerWatering, animate };
+  function playWatering(index) {
+    if (views[index]) wateringEffect.play(views[index]);
+  }
+  function playSprinklerWatering(sourceIndex, targetIndex) {
+    if (views[sourceIndex] && views[targetIndex]) wateringEffect.spray(views[sourceIndex], views[targetIndex]);
+  }
+  function animate(ms) {
+    for (let index = 0; index < views.length; index++) {
+      const view = views[index];
+      if (view.sprinklerHead) view.sprinklerHead.rotation.y = ms * .0011 + index * .23;
+      else if (view.root) view.root.rotation.z = Math.sin(ms * .00125 + index * .7) * .024;
+    }
+  }
+  return { ground, views, updateLand, syncPatches, setHover,
+    playWatering, playSprinklerWatering, animate };
 }
