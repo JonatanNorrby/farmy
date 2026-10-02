@@ -18,8 +18,8 @@ export const LEGACY_GRID = Object.freeze({
 export const LEGACY_PLOT_COUNT = LEGACY_GRID.columns * LEGACY_GRID.rows;
 export function legacyPlotPosition(index) {
   return {
-    x: LEGACY_GRID.firstX + (index % LEGACY_GRID.columns) * LEGACY_GRID.spacing,
-    z: LEGACY_GRID.firstZ + Math.floor(index / LEGACY_GRID.columns) * LEGACY_GRID.spacing,
+    x: Math.round((LEGACY_GRID.firstX + (index % LEGACY_GRID.columns) * LEGACY_GRID.spacing) * 100) / 100,
+    z: Math.round((LEGACY_GRID.firstZ + Math.floor(index / LEGACY_GRID.columns) * LEGACY_GRID.spacing) * 100) / 100,
   };
 }
 export const STARTER_PATCHES = Object.freeze([0, 1, 5, 6].map(index => Object.freeze(legacyPlotPosition(index))));
