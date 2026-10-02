@@ -77,7 +77,7 @@ test("the Shop toggles accessible Seeds/Buildings tabs and coexists with Setting
       onExpand() {}, onBrightnessChange() {}, brightness: 100,
     });
     const state = newFarm();
-    ui.render(state, "wheat", state.patches[0]);
+    ui.render(state, "wheat", state.soil[0]);
     assert.equal(f.nodes["inspect-text"].textContent, "Buy a wheat seed bag in Shop → Seeds.");
     assert.equal(f.nodes["shop-coins"].textContent, "✦ 64");
     assert.equal(f.nodes["bag-count"].textContent, "0/10");
@@ -101,12 +101,12 @@ test("the Shop toggles accessible Seeds/Buildings tabs and coexists with Setting
     f.purchases[0].fire("click");
     assert.deepEqual(bought, ["wheat"]);
     const purchased = buyShopItem(state, "wheat").state;
-    ui.render(purchased, "wheat", purchased.patches[0]);
+    ui.render(purchased, "wheat", purchased.soil[0]);
     assert.equal(f.tools[0].cost.textContent, "× 10");
     assert.equal(f.nodes["stock-wheat"].textContent, 10);
     assert.equal(f.nodes["shop-coins"].textContent, "✦ 34");
     const filled = { ...purchased, harvestBag: { ...purchased.harvestBag, wheat: 2 } };
-    ui.render(filled, "wheat", filled.patches[0]);
+    ui.render(filled, "wheat", filled.soil[0]);
     assert.equal(f.nodes["bag-count"].textContent, "2/10");
     assert.equal(f.nodes["sell-harvest"].disabled, false);
     assert.equal(f.nodes["sell-harvest"].textContent, "Sell ✦ 38");
@@ -117,9 +117,10 @@ test("the Shop toggles accessible Seeds/Buildings tabs and coexists with Setting
     assert.equal(f.nodes["bag-count"].textContent, "10/10");
     assert.equal(f.nodes["sell-harvest"].textContent, "Sell ✦ 190");
     assert.equal(f.nodes["harvest-counter"].getAttribute("aria-label"), "Harvest bag: 10 of 10 crops");
-    const ripe = { ...full, patches: full.patches.map((patch, index) => index === 0 ?
-      { ...patch, content: { cropId: "wheat", plantedAt: 1000, readyAt: 2000, watered: false } } : patch) };
-    ui.render(ripe, "wheat", ripe.patches[0], 3000);
+    const ripe = { ...full, plants: [{
+      ...full.soil[0], cropId: "wheat", plantedAt: 1000, readyAt: 2000, watered: false,
+    }] };
+    ui.render(ripe, "wheat", ripe.plants[0], 3000);
     assert.equal(f.nodes["inspect-text"].textContent, "Bag full · Sell your harvest first");
     assert.equal(f.purchases[0].disabled, false);
     assert.equal(f.purchases[1].disabled, true);
