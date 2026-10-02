@@ -1,52 +1,72 @@
-import { CROPS, FARM, PLOT_COUNT } from "../config/crops.js";
-import { newFarm, SAVE_VERSION } from "./farm.js";
+import { CROPS, FARM, LEGACY_GRID, LEGACY_PLOT_COUNT, legacyPlotPosition } from "../config/crops.js";
+import { newFarm, SAVE_VERSION, onLand, roundPosition } from "./farm.js";
 
-// The original browser storage key stays stable through schema upgrades.
+// Retain the key through migrations so existing gardens are not lost.
 export const SAVE_KEY = "farmy-save-v1";
-
+function validContent(content, supportsSprinkler) {
+  if (content === null) return null;
+  if (supportsSprinkler && content?.kind === "sprinkler") {
+    if (Object.keys(content).length !== 1) throw Error("Invalid sprinkler");
+    return { kind: "sprinkler" };
+  }
+  if (!content || !Object.hasOwn(CROPS, content.cropId) ||
+      !Number.isFinite(content.plantedAt) || !Number.isFinite(content.readyAt) ||
+      content.plantedAt < 0 || content.readyAt <= content.plantedAt ||
+      typeof content.watered !== "boolean") throw Error("Invalid crop");
+  return { cropId: content.cropId, plantedAt: content.plantedAt,
+    readyAt: content.readyAt, watered: content.watered };
+}
+function validEconomy(raw) {
+  return Number.isSafeInteger(raw.coins) && raw.coins >= 0 &&
+    Number.isSafeInteger(raw.harvested) && raw.harvested >= 0;
+}
+function validLevel(level) {
+  return Number.isInteger(level) && level >= FARM.initialLevel && level <= FARM.maxLevel;
+}
+function readCurrent(raw) {
+  if (!validLevel(raw.landLevel) || !Array.isArray(raw.patches) ||
+      raw.patches.length > FARM.maxPatches) return null;
+  const state = { version: SAVE_VERSION, coins: raw.coins, harvested: raw.harvested,
+    landLevel: raw.landLevel, patches: [] };
+  for (const patch of raw.patches) {
+    if (!patch || !Number.isFinite(patch.x) || !Number.isFinite(patch.z) ||
+        !onLand(state, patch, FARM.patchRadius)) return null;
+    const x = roundPosition(patch.x), z = roundPosition(patch.z);
+    if (state.patches.some(other => Math.hypot(other.x - x, other.z - z) < FARM.brushSpacing - .025)) return null;
+    state.patches.push({ x, z, content: validContent(patch.content, true) });
+  }
+  return state;
+}
+function readLegacy(raw) {
+  if (!Array.isArray(raw.plots) || raw.plots.length !== LEGACY_PLOT_COUNT) return null;
+  const landLevel = raw.version === 1 ? FARM.maxLevel : raw.unlockedRows;
+  if (!validLevel(landLevel)) return null;
+  const count = landLevel * LEGACY_GRID.columns;
+  const tilled = raw.version === 4 ? raw.tilled :
+    Array.from({ length: LEGACY_PLOT_COUNT }, (_, index) => index < count);
+  if (!Array.isArray(tilled) || tilled.length !== LEGACY_PLOT_COUNT ||
+      tilled.some((prepared, index) => typeof prepared !== "boolean" || (index >= count && prepared))) return null;
+  const patches = [];
+  for (let index = 0; index < LEGACY_PLOT_COUNT; index++) {
+    const content = validContent(raw.plots[index], raw.version >= 3);
+    if (content !== null && !tilled[index]) return null;
+    if (tilled[index]) patches.push({ ...legacyPlotPosition(index), content });
+  }
+  return { version: SAVE_VERSION, coins: raw.coins, harvested: raw.harvested, landLevel, patches };
+}
 export function loadFarm(storage = globalThis.localStorage) {
   try {
     const raw = JSON.parse(storage.getItem(SAVE_KEY));
-    if (!raw || ![1, 2, 3, SAVE_VERSION].includes(raw.version) ||
-        !Array.isArray(raw.plots) || raw.plots.length !== PLOT_COUNT) return newFarm();
-    // v1 predates expansion, so all twenty old farm plots were available.
-    const unlockedRows = raw.version === 1 ? FARM.rows : raw.unlockedRows;
-    if (!Number.isInteger(unlockedRows) || unlockedRows < FARM.initialRows || unlockedRows > FARM.rows) return newFarm();
-    if (!Number.isSafeInteger(raw.coins) || raw.coins < 0 ||
-        !Number.isSafeInteger(raw.harvested) || raw.harvested < 0) return newFarm();
-
-    const ownedCount = unlockedRows * FARM.columns;
-    // Prior to v4, ALL owned cells were already tilled. Preserve those plots
-    // exactly, whether empty, planted with discontinued crops, or sprinklers.
-    const tilled = raw.version === SAVE_VERSION
-      ? raw.tilled
-      : Array.from({ length: PLOT_COUNT }, (_, index) => index < ownedCount);
-    if (!Array.isArray(tilled) || tilled.length !== PLOT_COUNT ||
-        tilled.some((prepared, index) => typeof prepared !== "boolean" || (index >= ownedCount && prepared))) return newFarm();
-
-    const plots = raw.plots.map(plot => {
-      if (plot === null) return null;
-      if (raw.version >= 3 && plot?.kind === "sprinkler") {
-        if (Object.keys(plot).length !== 1) throw new Error("Invalid sprinkler");
-        return { kind: "sprinkler" };
-      }
-      if (!plot || !Object.hasOwn(CROPS, plot.cropId) ||
-          !Number.isFinite(plot.plantedAt) || !Number.isFinite(plot.readyAt) ||
-          plot.plantedAt < 0 || plot.readyAt <= plot.plantedAt || typeof plot.watered !== "boolean") throw new Error("Invalid plot");
-      return { cropId: plot.cropId, plantedAt: plot.plantedAt, readyAt: plot.readyAt, watered: plot.watered };
-    });
-    if (plots.some((plot, index) => plot !== null && !tilled[index])) return newFarm();
-    return { version: SAVE_VERSION, coins: raw.coins, harvested: raw.harvested, unlockedRows, tilled, plots };
+    if (!raw || ![1, 2, 3, 4, SAVE_VERSION].includes(raw.version) || !validEconomy(raw)) return newFarm();
+    return (raw.version === SAVE_VERSION ? readCurrent(raw) : readLegacy(raw)) ?? newFarm();
   } catch {
     return newFarm();
   }
 }
-
 export function saveFarm(state, storage = globalThis.localStorage) {
   try { storage.setItem(SAVE_KEY, JSON.stringify(state)); return true; }
-  catch { return false; } // Storage may be disabled or full.
+  catch { return false; }
 }
-
 export function clearFarm(storage = globalThis.localStorage) {
   try { storage.removeItem(SAVE_KEY); } catch { /* Storage can be unavailable. */ }
 }
