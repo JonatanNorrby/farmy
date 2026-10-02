@@ -1,15 +1,33 @@
-import { CROPS, FARM, PLOT_COUNT, SPRINKLER, PLANTABLE_CROPS } from "../config/crops.js";
+import { CROPS, FARM, PLOT_COUNT, SPRINKLER, PLANTABLE_CROPS, PLOT_COST, STARTER_PLOTS } from "../config/crops.js";
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function newFarm() {
-  return { version: SAVE_VERSION, coins: 64, harvested: 0, unlockedRows: FARM.initialRows, plots: Array(PLOT_COUNT).fill(null) };
+  const tilled = Array(PLOT_COUNT).fill(false);
+  for (const index of STARTER_PLOTS) tilled[index] = true;
+  return { version: SAVE_VERSION, coins: 64, harvested: 0, unlockedRows: FARM.initialRows, tilled, plots: Array(PLOT_COUNT).fill(null) };
 }
 function failure(state, message) { return { ok: false, state, message }; }
 function validIndex(index) { return Number.isInteger(index) && index >= 0 && index < PLOT_COUNT; }
 export function unlockedPlotCount(state) { return state.unlockedRows * FARM.columns; }
 export function isPlotUnlocked(state, index) {
   return validIndex(index) && index < unlockedPlotCount(state);
+}
+// Ownership of land and preparation of a farm plot are independent.
+export function isFarmPlot(state, index) {
+  return isPlotUnlocked(state, index) && state.tilled[index] === true;
+}
+export function createPlot(state, index) {
+  if (!isPlotUnlocked(state, index)) return failure(state, "Expand land first.");
+  if (isFarmPlot(state, index) || state.plots[index]) return failure(state, "Plot already prepared.");
+  if (state.coins < PLOT_COST) return failure(state, "Need ✦ " + PLOT_COST + " to prepare a plot.");
+  const tilled = state.tilled.slice();
+  tilled[index] = true;
+  return {
+    ok: true,
+    state: { ...state, coins: state.coins - PLOT_COST, tilled },
+    message: "🌱 Farm plot created",
+  };
 }
 export function isSprinkler(plot) { return plot?.kind === "sprinkler"; }
 
@@ -52,7 +70,7 @@ export function expandFarm(state) {
   return {
     ok: true,
     state: { ...state, coins: state.coins - cost, unlockedRows: state.unlockedRows + 1 },
-    message: "🌱 +5 plots unlocked",
+    message: "🌿 +5 land tiles unlocked",
   };
 }
 function withPlot(state, index, plot, extra = {}) {
@@ -62,7 +80,7 @@ function withPlot(state, index, plot, extra = {}) {
 }
 
 export function placeSprinkler(state, index, now = Date.now()) {
-  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock land first.");
+  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
   if (state.plots[index]) return failure(state, "Plot already occupied.");
   if (state.coins < SPRINKLER.cost) return failure(state, "Not enough coins.");
   const plots = state.plots.slice();
@@ -84,7 +102,7 @@ export function placeSprinkler(state, index, now = Date.now()) {
 }
 
 export function plant(state, index, cropId, now = Date.now()) {
-  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock land first.");
+  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
   if (!PLANTABLE_CROPS.includes(cropId)) return failure(state, "Only wheat can be planted.");
   const crop = CROPS[cropId];
   if (state.plots[index]) return failure(state, "Plot already occupied.");
@@ -100,7 +118,7 @@ export function plant(state, index, cropId, now = Date.now()) {
 }
 
 export function water(state, index, now = Date.now()) {
-  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock land first.");
+  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
   const plot = state.plots[index];
   if (isSprinkler(plot)) return failure(state, "Sprinkler waters nearby crops.");
   if (!plot) return failure(state, "Plant a seed first.");
@@ -115,7 +133,7 @@ export function water(state, index, now = Date.now()) {
 }
 
 export function harvest(state, index, now = Date.now()) {
-  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock land first.");
+  if (!isFarmPlot(state, index)) return failure(state, "Prepare a farm plot first.");
   const plot = state.plots[index];
   if (isSprinkler(plot)) return failure(state, "Sprinkler occupies this plot.");
   if (!plot) return failure(state, "Nothing to harvest.");
