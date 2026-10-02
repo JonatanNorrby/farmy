@@ -1,5 +1,6 @@
-import { PLOT_COUNT } from "./config/crops.js";
-import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked, isFarmPlot, createPlot, placeSprinkler, isSprinkler, neighboringPlots } from "./game/farm.js";
+import { newFarm, plant, water, harvest, expandFarm, onLand, findPatchIndex,
+  paintSoil, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
+import { FARM } from "./config/crops.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
 import { loadBrightness, saveBrightness } from "./game/settings.js";
 import { createScene } from "./render/scene.js";
@@ -16,8 +17,15 @@ function boot() {
   let state = loadFarm();
   let selectedTool = "wheat";
   let hovered = null;
+  let painting = false;
+  let lastPaintPoint = null;
   let lastTick = 0;
 
+  function refresh(now = Date.now()) {
+    world.updateLand(state.landLevel);
+    world.syncPatches(state.patches, now);
+    ui.render(state, selectedTool, hovered, now);
+  }
   const ui = createInterface({
     brightness,
     onBrightnessChange(value) {
@@ -25,6 +33,7 @@ function boot() {
       saveBrightness(brightness);
     },
     onToolChange(id) {
+      painting = false;
       selectedTool = id;
       ui.render(state, selectedTool, hovered);
     },
@@ -33,111 +42,126 @@ function boot() {
       if (result.ok) {
         state = result.state;
         saveFarm(state);
-        world.updateExpansion(state.unlockedRows, state.tilled);
+        refresh();
       }
       ui.render(state, selectedTool, hovered);
       ui.notify(result.message);
     },
     onReset() {
+      painting = false;
+      lastPaintPoint = null;
       clearFarm();
       state = newFarm();
       saveFarm(state);
-      world.updateExpansion(state.unlockedRows, state.tilled);
-      for (let i = 0; i < PLOT_COUNT; i++) world.updatePlot(i, null, -1);
-      ui.render(state, selectedTool, hovered);
+      refresh();
       ui.notify("Farm reset");
     },
   });
+  refresh();
 
-  function updatePlants(now) {
-    for (let i = 0; i < PLOT_COUNT; i++) {
-      const plot = state.plots[i];
-      world.updatePlot(i, plot, growthStage(plot, now));
-    }
-  }
-  world.updateExpansion(state.unlockedRows, state.tilled);
-  updatePlants(Date.now());
-  ui.render(state, selectedTool, hovered);
-
-  function plotFromPointer() {
-    // All decorations/crops are non-pickable, allowing a clear click on the soil.
+  function pointFromPointer() {
+    // Pick ONLY the ground, not overlapping wheat, soil marks or sprinklers.
+    // Babylon gives us a continuous world-space intersection instead of a tile ID.
     const hit = scene.pick(scene.pointerX, scene.pointerY,
-      mesh => Number.isInteger(mesh.metadata?.plotIndex), false, camera);
-    return hit?.hit && hit.pickedMesh ? hit.pickedMesh.metadata.plotIndex : null;
+      mesh => mesh.metadata?.farmSurface === true, false, camera);
+    return hit?.hit && hit.pickedPoint
+      ? { x: hit.pickedPoint.x, z: hit.pickedPoint.z }
+      : null;
   }
-
-  function interact(index) {
-    const now = Date.now();
-    const plot = state.plots[index];
-    let result;
-    if (!isPlotUnlocked(state, index)) result = expandFarm(state);
-    else if (!isFarmPlot(state, index)) {
-      result = selectedTool === "plot" ? createPlot(state, index) :
-        { ok: false, message: "Prepare a plot first · Tool 4" };
-    }
-    else if (isSprinkler(plot)) result = { ok: false, message: "💦 Sprinkler active · waters adjacent plots" };
-    else if (plot && now >= plot.readyAt) result = harvest(state, index, now);
-    else if (selectedTool === "plot") result = { ok: false, message: "Plot already prepared" };
-    else if (selectedTool === "water") result = water(state, index, now);
-    else if (plot) {
-      result = { ok: false, message: "Already planted · Water or harvest" };
-    } else if (selectedTool === "sprinkler") result = placeSprinkler(state, index, now);
-    else result = plant(state, index, selectedTool, now);
-
+  function accept(result, now = Date.now(), announce = true, sourceIndex = -1) {
     if (result.ok) {
       state = result.state;
       saveFarm(state);
-      world.updateExpansion(state.unlockedRows, state.tilled);
-      updatePlants(now);
-      // Farming results identify crops that have JUST become watered. Particle
-      // effects are visual only and never re-apply the simulation bonus.
+      refresh(now);
       for (const targetIndex of result.wateredIndices ?? []) {
         if (selectedTool === "water") {
           world.playWatering(targetIndex);
           continue;
         }
-        const sprinklerIndex = isSprinkler(state.plots[index]) ? index :
-          neighboringPlots(targetIndex).find(other => isPlotUnlocked(state, other) && isSprinkler(state.plots[other]));
-        if (sprinklerIndex === undefined) world.playWatering(targetIndex);
+        const sprinklerIndex = sourceIndex >= 0 && isSprinkler(state.patches[sourceIndex]?.content)
+          ? sourceIndex : nearbySprinkler(state, targetIndex);
+        if (sprinklerIndex < 0) world.playWatering(targetIndex);
         else world.playSprinklerWatering(sprinklerIndex, targetIndex);
       }
     }
-    ui.render(state, selectedTool, hovered, now);
-    ui.notify(result.message);
+    if (announce) ui.notify(result.message);
+    return result;
   }
-
+  function interact(point) {
+    const now = Date.now();
+    if (!onLand(state, point, FARM.patchRadius)) {
+      accept(expandFarm(state), now);
+      return;
+    }
+    if (selectedTool === "plot") {
+      accept(paintSoil(state, point, point), now);
+      return;
+    }
+    const index = findPatchIndex(state, point);
+    if (index === -1) {
+      ui.notify("Paint soil first · Plot (4)");
+      return;
+    }
+    const content = state.patches[index].content;
+    let result;
+    if (isSprinkler(content)) result = { ok: false, message: "💦 Sprinkler active" };
+    else if (content && now >= content.readyAt) result = harvest(state, index, now);
+    else if (selectedTool === "water") result = water(state, index, now);
+    else if (content) result = { ok: false, message: "Already planted · Water or harvest" };
+    else if (selectedTool === "sprinkler") result = placeSprinkler(state, index, now);
+    else result = plant(state, index, selectedTool, now);
+    accept(result, now, true, index);
+  }
   scene.onPointerObservable.add(info => {
+    if (info.type === B.PointerEventTypes.POINTERUP) {
+      painting = false;
+      lastPaintPoint = null;
+    }
     if (info.type === B.PointerEventTypes.POINTERMOVE) {
-      const next = plotFromPointer();
-      if (hovered !== next) {
-        hovered = next;
-        world.setHover(hovered);
-        canvas.style.cursor = hovered === null ? "default" : "pointer";
-        ui.render(state, selectedTool, hovered);
+      const point = pointFromPointer();
+      hovered = point;
+      world.setHover(point);
+      canvas.style.cursor = point ? "crosshair" : "default";
+      if (painting && selectedTool === "plot" && point) {
+        const result = paintSoil(state, lastPaintPoint ?? point, point);
+        accept(result, Date.now(), false);
+        lastPaintPoint = point;
       }
+      ui.render(state, selectedTool, hovered);
     }
     if (info.type === B.PointerEventTypes.POINTERDOWN && info.event.button === 0) {
-      hovered = plotFromPointer();
-      world.setHover(hovered);
-      if (hovered !== null) interact(hovered);
+      const point = pointFromPointer();
+      hovered = point;
+      world.setHover(point);
+      if (!point) return;
+      interact(point);
+      // Clicking unowned land can buy expansion, but dragging cannot purchase
+      // additional expansions accidentally.
+      painting = selectedTool === "plot" && onLand(state, point, FARM.patchRadius);
+      lastPaintPoint = painting ? point : null;
     }
   });
+  window.addEventListener("pointerup", () => { painting = false; lastPaintPoint = null; });
   canvas.addEventListener("pointerleave", () => {
-    hovered = null; world.setHover(null);
+    hovered = null;
+    world.setHover(null);
     canvas.style.cursor = "default";
     ui.render(state, selectedTool, hovered);
   });
-
   window.addEventListener("keydown", event => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
     const choices = { "1": "wheat", "2": "water", "3": "sprinkler", "4": "plot" };
     if (choices[event.key]) {
+      painting = false;
       selectedTool = choices[event.key];
       ui.render(state, selectedTool, hovered);
     }
     if (event.key === "Escape") {
-      hovered = null; world.setHover(null); ui.render(state, selectedTool, hovered);
+      painting = false;
+      hovered = null;
+      world.setHover(null);
+      ui.render(state, selectedTool, hovered);
     }
   });
   window.addEventListener("resize", resize);
@@ -145,7 +169,7 @@ function boot() {
     const now = Date.now();
     if (now - lastTick > 250) {
       lastTick = now;
-      updatePlants(now);
+      world.syncPatches(state.patches, now);
       ui.render(state, selectedTool, hovered, now);
     }
     world.animate(performance.now());
