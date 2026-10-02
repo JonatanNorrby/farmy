@@ -96,6 +96,10 @@ test("movement clamps camera to the full farmland plus a navigation margin", () 
 
 test("left clicks remain interactions, drags pan, and Plot painting is unaffected", () => {
   assert.equal(pointerGestureMode(0, "wheat", true), "pending");
+  assert.equal(pointerGestureMode(0, "wheat", true, true), "seed-pending");
+  assert.equal(pointerGestureMode(0, "wheat", true, false), "pending");
+  assert.equal(pointerGestureMode(0, "wheat", false, true), "seed-pending");
+  assert.equal(pointerGestureMode(2, "wheat", true, true), "pan");
   assert.equal(pointerGestureMode(0, "water", true), "pending");
   assert.equal(pointerGestureMode(0, "sprinkler", true), "pending");
   assert.equal(pointerGestureMode(0, "plot", true), "paint");
