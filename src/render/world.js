@@ -8,7 +8,7 @@ export function createWorld(scene) {
   const materials = {};
   const colors = {
     grass: "#819f6d", edge: "#66875c", earthSide: "#846347", earthBottom: "#574638",
-    field: "#7e9c68", plotEdge: "#ab895e", soil: "#6c533d", furrow: "#59442f", lockedGrass: "#66875d",
+    field: "#7e9c68", plotEdge: "#ab895e", soil: "#6c533d", furrow: "#59442f", ownedGrass: "#77946a", lockedGrass: "#66875d",
     cream: "#e9d2a5", roof: "#ad6550", roofLight: "#bb7254", wood: "#84583e",
     woodLight: "#af8254", door: "#664633", window: "#94c4b9",
     treeTrunk: "#82613f", tree: "#567e53", treeBright: "#71975c", treeDark: "#456d47",
@@ -49,10 +49,10 @@ export function createWorld(scene) {
   box("earth lower layer", 25.5, .35, 19.8, 0, -1.45, 0, materials.earthBottom);
   box("earth island", 25.8, 1.3, 19.9, 0, -.73, 0, materials.earthSide);
   box("lush grassy surface", 25.85, .18, 19.95, 0, 0, 0, materials.grass);
-  box("farm enclosure lawn", 12.45, .035, 10.2, -4.24, .111, -.22, materials.field);
+  const farmLawn = box("expandable farm lawn", 12.45, .035, 10.2, -4.24, .111, -.22, materials.field);
 
-  // The full meadow is laid out once. Locked rows remain grassy until purchased;
-  // the same pickable mesh allows a locked tile to open the next expansion.
+  // All twenty potential cells are pickable. Land ownership and preparation
+  // are separate: owned grass turns into tilled soil only where the player builds a plot.
   const plots = [];
   for (let i = 0; i < PLOT_COUNT; i++) {
     const p = plotPosition(i);
@@ -74,17 +74,22 @@ export function createWorld(scene) {
       // Absolute mesh positions become local when parented; correct to the tile.
       tuft.position.set(tx, .44, tz);
     }
-    plots.push({ soil, edge, furrows, lockDecor, unlocked: null, root: null, sprinklerHead: null, stage: -99, cropId: null, position: p });
+    plots.push({ soil, edge, furrows, lockDecor, unlocked: null, prepared: null, root: null, sprinklerHead: null, stage: -99, cropId: null, position: p });
   }
-  function updateExpansion(unlockedRows) {
+  function updateExpansion(unlockedRows, tilled) {
+    // Only the underlying farm lawn expands. New land starts as grass and
+    // individual plot placement reveals soil, timber borders and furrows.
+    farmLawn.position.z = FARM.firstZ + (unlockedRows - 1) * FARM.spacing / 2;
+    farmLawn.scaling.z = (unlockedRows * FARM.spacing + 1.4) / 10.2;
     const count = unlockedRows * FARM.columns;
     for (let i = 0; i < plots.length; i++) {
-      const view = plots[i], unlocked = i < count;
-      if (view.unlocked === unlocked) continue;
+      const view = plots[i], unlocked = i < count, prepared = unlocked && tilled[i] === true;
+      if (view.unlocked === unlocked && view.prepared === prepared) continue;
       view.unlocked = unlocked;
-      view.soil.material = unlocked ? materials.soil : materials.lockedGrass;
-      view.edge.setEnabled(unlocked);
-      view.furrows.forEach(mesh => mesh.setEnabled(unlocked));
+      view.prepared = prepared;
+      view.soil.material = !unlocked ? materials.lockedGrass : prepared ? materials.soil : materials.ownedGrass;
+      view.edge.setEnabled(prepared);
+      view.furrows.forEach(mesh => mesh.setEnabled(prepared));
       view.lockDecor.setEnabled(!unlocked);
     }
   }
