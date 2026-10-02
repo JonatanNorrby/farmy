@@ -1,4 +1,4 @@
-import { newFarm, buyShopItem, plant, water, harvest, expandFarm, onLand, findPatchIndex,
+import { newFarm, buyShopItem, sellHarvest, plant, water, harvest, expandFarm, onLand, findPatchIndex,
   paintSoil, paintSeeds, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
 import { FARM } from "./config/crops.js";
 import { pointerGestureMode, crossedDragThreshold } from "./render/cameraMovement.js";
@@ -42,6 +42,9 @@ function boot() {
     },
     onBuy(id) {
       accept(buyShopItem(state, id));
+    },
+    onSell() {
+      accept(sellHarvest(state));
     },
     onExpand() {
       const result = expandFarm(state);
