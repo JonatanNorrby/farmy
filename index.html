@@ -20,6 +20,7 @@
         <strong class="brand">farmy<span>.</span></strong>
         <button class="reset-button" id="reset" type="button" title="Start a new garden" aria-label="Start a new garden">↺</button>
         <button class="settings-toggle" id="settings-toggle" type="button" title="Settings" aria-label="Open settings" aria-controls="settings-panel" aria-expanded="false">⚙</button>
+        <button class="shop-toggle" id="shop-toggle" type="button" aria-label="Open shop" aria-controls="shop-panel" aria-expanded="false">Shop</button>
       </div>
       <div class="counters" aria-live="polite">
         <div class="counter"><span class="counter-icon">✦</span><div><small>COINS</small><strong id="coins">64</strong></div></div>
@@ -41,13 +42,39 @@
       <p class="settings-help">WASD to move · Drag to pan · Right-drag when painting · Scroll to zoom</p>
     </section>
 
+    <section id="shop-panel" class="shop-panel" aria-labelledby="shop-heading" hidden>
+      <div class="shop-heading">
+        <strong id="shop-heading">Farm shop</strong>
+        <span id="shop-coins" class="shop-coins" aria-live="polite">✦ 64</span>
+        <button id="shop-close" class="shop-close" type="button" aria-label="Close shop">×</button>
+      </div>
+      <div class="shop-tabs" role="tablist" aria-label="Shop categories">
+        <button id="shop-tab-seeds" type="button" role="tab" aria-controls="shop-seeds" aria-selected="true" tabindex="0" data-shop-tab="seeds">Seeds</button>
+        <button id="shop-tab-buildings" type="button" role="tab" aria-controls="shop-buildings" aria-selected="false" tabindex="-1" data-shop-tab="buildings">Buildings</button>
+      </div>
+      <div id="shop-seeds" class="shop-content" role="tabpanel" aria-labelledby="shop-tab-seeds" data-shop-panel="seeds">
+        <div class="shop-item">
+          <span class="shop-icon" aria-hidden="true">🌾</span>
+          <div class="shop-item-text"><strong>Wheat seed bag</strong><small>10 seeds per bag · In stock: <span id="stock-wheat">0</span></small></div>
+          <button class="shop-buy" type="button" data-buy="wheat" aria-label="Buy a bag of 10 wheat seeds for 30 coins">Buy ✦ 30</button>
+        </div>
+      </div>
+      <div id="shop-buildings" class="shop-content" role="tabpanel" aria-labelledby="shop-tab-buildings" data-shop-panel="buildings" hidden>
+        <div class="shop-item">
+          <span class="shop-icon" aria-hidden="true">💦</span>
+          <div class="shop-item-text"><strong>Sprinkler</strong><small>Place on empty soil · In stock: <span id="stock-sprinkler">0</span></small></div>
+          <button class="shop-buy" type="button" data-buy="sprinkler" aria-label="Buy one sprinkler for 36 coins">Buy ✦ 36</button>
+        </div>
+      </div>
+    </section>
+
     <aside id="inspector" class="inspector" aria-label="Selected plot and expansion">
       <div id="plot-detail" class="plot-detail" hidden>
         <div id="inspect-title" class="inspect-title"></div>
         <p id="inspect-text"></p>
         <div class="progress-track"><div id="inspect-progress" class="progress-fill"></div></div>
       </div>
-      <button id="expand-farm" class="expand-button" type="button" aria-label="Expand your farm land by five tiles">↗ Expand land</button>
+      <button id="expand-farm" class="expand-button" type="button" aria-label="Expand your farm land">↗ Expand land</button>
     </aside>
 
     <nav class="toolbar" aria-label="Garden tools">
@@ -55,17 +82,17 @@
         <button class="tool selected" type="button" data-tool="wheat" aria-pressed="true">
           <span class="hotkey">1</span><span class="tool-icon wheat">🌾</span>
           <span class="tool-details"><strong>Wheat</strong></span>
-          <span class="tool-cost">✦ 6</span>
+          <span class="tool-cost">× 0</span>
         </button>
         <button class="tool watering" type="button" data-tool="water" aria-pressed="false">
           <span class="hotkey">2</span><span class="tool-icon water">💧</span>
           <span class="tool-details"><strong>Water</strong></span>
           <span class="tool-cost free">FREE</span>
         </button>
-        <button class="tool" type="button" data-tool="sprinkler" aria-pressed="false" title="Waters all eight surrounding plots automatically">
+        <button class="tool" type="button" data-tool="sprinkler" aria-pressed="false" title="Place a purchased sprinkler to water nearby crops">
           <span class="hotkey">3</span><span class="tool-icon sprinkler">💦</span>
           <span class="tool-details"><strong>Sprinkler</strong></span>
-          <span class="tool-cost">✦ 36</span>
+          <span class="tool-cost">× 0</span>
         </button>
         <button class="tool" type="button" data-tool="plot" aria-pressed="false" title="Paint soil freely onto owned grass by dragging">
           <span class="hotkey">4</span><span class="tool-icon plot">🪴</span>
