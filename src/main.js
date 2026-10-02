@@ -1,5 +1,5 @@
 import { PLOT_COUNT } from "./config/crops.js";
-import { newFarm, plant, water, harvest, growthStage } from "./game/farm.js";
+import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked } from "./game/farm.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
 import { createScene } from "./render/scene.js";
 import { createWorld } from "./render/world.js";
@@ -21,10 +21,21 @@ function boot() {
       ui.render(state, selectedTool, hovered);
       ui.notify(id === "water" ? "💧 Watering can selected" : "Selected " + id + " seeds");
     },
+    onExpand() {
+      const result = expandFarm(state);
+      if (result.ok) {
+        state = result.state;
+        saveFarm(state);
+        world.updateExpansion(state.unlockedRows);
+      }
+      ui.render(state, selectedTool, hovered);
+      ui.notify(result.message);
+    },
     onReset() {
       clearFarm();
       state = newFarm();
       saveFarm(state);
+      world.updateExpansion(state.unlockedRows);
       for (let i = 0; i < PLOT_COUNT; i++) world.updatePlot(i, null, -1);
       ui.render(state, selectedTool, hovered);
       ui.notify("✿ Your fresh little garden is ready!");
@@ -37,6 +48,7 @@ function boot() {
       world.updatePlot(i, plot, growthStage(plot, now));
     }
   }
+  world.updateExpansion(state.unlockedRows);
   updatePlants(Date.now());
   ui.render(state, selectedTool, hovered);
 
@@ -51,7 +63,8 @@ function boot() {
     const now = Date.now();
     const plot = state.plots[index];
     let result;
-    if (plot && now >= plot.readyAt) result = harvest(state, index, now);
+    if (!isPlotUnlocked(state, index)) result = expandFarm(state);
+    else if (plot && now >= plot.readyAt) result = harvest(state, index, now);
     else if (selectedTool === "water") result = water(state, index, now);
     else if (plot) {
       result = { ok: false, message: "Already planted! Try watering this crop or wait for harvest." };
@@ -60,6 +73,7 @@ function boot() {
     if (result.ok) {
       state = result.state;
       saveFarm(state);
+      world.updateExpansion(state.unlockedRows);
       updatePlants(now);
       // Visual feedback only: particle animation never changes farming rules.
       if (selectedTool === "water" && plot && result.state.plots[index]?.watered) {
