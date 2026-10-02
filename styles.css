@@ -57,6 +57,7 @@ button { font: inherit; cursor: pointer; }
 .plot-detail { pointer-events: none; }
 .inspect-title { font: bold 17px Georgia, serif; color: #42654e; }
 .inspector p { margin: 8px 0; font-size: 11px; line-height: 1.5; color: #607b63; }
+.progress-track[hidden] { display: none; }
 .progress-track { height: 7px; margin-top: 11px; overflow: hidden; border-radius: 99px; background: #c7d0b8; }
 .progress-fill {
   width: 0; height: 100%; border-radius: inherit; transition: width .4s;
@@ -74,11 +75,11 @@ button { font: inherit; cursor: pointer; }
 
 .toolbar {
   position: absolute; z-index: 5; bottom: 24px; left: 50%; transform: translateX(-50%);
-  width: min(660px, calc(100vw - 30px)); padding: 10px; border: 1px solid #f2e3c6;
+  width: min(800px, calc(100vw - 30px)); padding: 10px; border: 1px solid #f2e3c6;
   border-radius: 18px; background: #e8ddc5f5;
   box-shadow: 0 14px 45px #39362847, 0 4px 0 #9e9f7a;
 }
-.tools { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+.tools { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; }
 .tool {
   position: relative; display: flex; align-items: center; min-width: 0; min-height: 65px;
   gap: 9px; padding: 10px 8px 12px; border: 1px solid #cbcbb2; border-bottom: 3px solid #b9bba1;
@@ -96,6 +97,7 @@ button { font: inherit; cursor: pointer; }
 .tool-icon.wheat { background: #ebe4c5; }
 .tool-icon.pumpkin { background: #f0d5c3; }
 .tool-icon.water { background: #c7dfe2; }
+.tool-icon.sprinkler { background: #c1d9d3; }
 .tool-details { display: flex; min-width: 0; }
 .tool-details strong { font-size: 12px; }
 .tool-cost { position: absolute; right: 7px; bottom: 4px; font-size: 9px; font-weight: 900; color: #a9822d; }
@@ -138,7 +140,7 @@ button { font: inherit; cursor: pointer; }
   .tools { gap: 4px; }
   .tool { flex-direction: column; gap: 3px; min-height: 77px; padding: 10px 2px 14px; text-align: center; }
   .tool-icon { width: 30px; height: 29px; font-size: 21px; }
-  .tool-details strong { font-size: 10px; }
+  .tool-details strong { font-size: 9px; }
   .tool-cost { right: 50%; bottom: 3px; transform: translateX(50%); }
   .toast { top: 61px; }
 }
