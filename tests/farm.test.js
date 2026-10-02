@@ -17,6 +17,7 @@ test("new farms use four positioned patches and a continuous owned ground", () =
   const farm = newFarm();
   assert.equal(farm.version, SAVE_VERSION);
   assert.deepEqual(farm.inventory, { wheat: 0, sprinkler: 0 });
+  assert.deepEqual(farm.harvestBag, { carrot: 0, wheat: 0, pumpkin: 0 });
   assert.equal(farm.coins, 64);
   assert.equal(farm.landLevel, 2);
   assert.equal(farm.patches.length, 4);
@@ -115,6 +116,8 @@ test("wheat planting, watering and harvest act on the chosen freeform patch", ()
   const harvested = harvest(watered.state, 1, 90000);
   assert.equal(harvested.ok, true);
   assert.equal(harvested.state.harvested, 1);
+  assert.equal(harvested.state.coins, watered.state.coins);
+  assert.equal(harvested.state.harvestBag.wheat, 1);
   assert.equal(harvested.state.patches[1].content, null);
   assert.equal(harvested.state.patches[1].x, initial.patches[1].x);
   assert.equal(growthStage(planted.state.patches[1].content, Infinity), 3);
@@ -159,7 +162,7 @@ test("sprinkler placement cannot rewater ripe or already watered crops", () => {
   assert.equal(late.state.patches[1].content.watered, false);
 });
 
-test("v6 saves roundtrip and reject malformed geometry, content, or inventory", () => {
+test("v7 saves roundtrip and reject malformed geometry, content, inventory, or harvest bags", () => {
   const store = storage();
   const initial = rich();
   const painted = paintSoil(initial, point(-4, -.9), point(-1.7, -.9)).state;
@@ -171,6 +174,8 @@ test("v6 saves roundtrip and reject malformed geometry, content, or inventory", 
     { ...initial, landLevel: 9 },
     { ...initial, coins: -1 },
     { ...initial, inventory: { wheat: -1, sprinkler: 0 } },
+    { ...initial, harvestBag: { wheat: 11, carrot: 0, pumpkin: 0 } },
+    { ...initial, harvestBag: { wheat: 1, carrot: 0 } },
     { ...initial, inventory: { wheat: 0 } },
     { ...initial, inventory: { wheat: 1, sprinkler: 0, fake: 1 } },
     { ...initial, patches: [{ x: 100, z: 100, content: null }] },
@@ -209,6 +214,7 @@ test("v1-v4 saves migrate all existing prepared patches and preserve old crops",
     assert.equal(migrated.version, SAVE_VERSION);
     assert.equal(migrated.coins, 31);
     assert.equal(migrated.harvested, 7);
+    assert.deepEqual(migrated.harvestBag, { carrot: 0, wheat: 0, pumpkin: 0 });
     assert.deepEqual(migrated.inventory, { wheat: 10, sprinkler: 0 });
     assert.equal(migrated.landLevel, version === 1 ? 4 : 3);
     const at = legacyPlotPosition(index);
