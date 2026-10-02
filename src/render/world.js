@@ -1,4 +1,4 @@
-import { plotPosition, PLOT_COUNT } from "../config/crops.js";
+import { FARM, plotPosition, PLOT_COUNT } from "../config/crops.js";
 import { buildCrop, createCropMaterials } from "./cropMeshes.js";
 import { createWateringEffect } from "./watering.js";
 
@@ -7,7 +7,7 @@ export function createWorld(scene) {
   const materials = {};
   const colors = {
     grass: "#819f6d", edge: "#66875c", earthSide: "#846347", earthBottom: "#574638",
-    field: "#7e9c68", plotEdge: "#ab895e", soil: "#6c533d", furrow: "#59442f",
+    field: "#7e9c68", plotEdge: "#ab895e", soil: "#6c533d", furrow: "#59442f", lockedGrass: "#66875d",
     cream: "#e9d2a5", roof: "#ad6550", roofLight: "#bb7254", wood: "#84583e",
     woodLight: "#af8254", door: "#664633", window: "#94c4b9",
     treeTrunk: "#82613f", tree: "#567e53", treeBright: "#71975c", treeDark: "#456d47",
@@ -49,16 +49,42 @@ export function createWorld(scene) {
   box("lush grassy surface", 25.85, .18, 19.95, 0, 0, 0, materials.grass);
   box("farm enclosure lawn", 12.45, .035, 10.2, -4.24, .111, -.22, materials.field);
 
-  // Farm's 20 individual interactable plots.
+  // The full meadow is laid out once. Locked rows remain grassy until purchased;
+  // the same pickable mesh allows a locked tile to open the next expansion.
   const plots = [];
   for (let i = 0; i < PLOT_COUNT; i++) {
     const p = plotPosition(i);
-    box("plot timber edge " + i, 2.03, .15, 2.03, p.x, .20, p.z, materials.plotEdge);
-    const soil = box("clickable garden soil " + i, 1.86, .09, 1.86, p.x, .292, p.z, materials.soil);
+    const edge = box("plot timber edge " + i, 2.03, .15, 2.03, p.x, .20, p.z, materials.plotEdge);
+    const soil = box("clickable garden patch " + i, 1.86, .09, 1.86, p.x, .292, p.z, materials.soil);
     soil.isPickable = true;
     soil.metadata = { plotIndex: i };
-    for (const dz of [-.49, 0, .49]) box("soft tilled soil", 1.50, .04, .13, p.x, .354, p.z + dz, materials.furrow);
-    plots.push({ soil, root: null, stage: -99, cropId: null, position: p });
+    const furrows = [-.49, 0, .49].map(dz =>
+      box("soft tilled soil", 1.50, .04, .13, p.x, .354, p.z + dz, materials.furrow));
+    const lockDecor = new B.TransformNode("uncleared meadow " + i, scene);
+    lockDecor.position.set(p.x, 0, p.z);
+    // Small wooden marker and wild grass make the next available land readable.
+    box("meadow stake", .11, .53, .12, -.48, .60, -.32, materials.woodLight, lockDecor);
+    box("meadow stake cap", .34, .10, .12, -.48, .86, -.32, materials.cream, lockDecor);
+    const tufts = [[.35,.25],[-.20,.36],[.35,-.40]];
+    for (const [tx,tz] of tufts) {
+      const tuft = sphere("uncleared grass", p.x + tx, .44, p.z + tz, .24, .24, .18, materials.treeDark, 6);
+      tuft.parent = lockDecor;
+      // Absolute mesh positions become local when parented; correct to the tile.
+      tuft.position.set(tx, .44, tz);
+    }
+    plots.push({ soil, edge, furrows, lockDecor, unlocked: null, root: null, stage: -99, cropId: null, position: p });
+  }
+  function updateExpansion(unlockedRows) {
+    const count = unlockedRows * FARM.columns;
+    for (let i = 0; i < plots.length; i++) {
+      const view = plots[i], unlocked = i < count;
+      if (view.unlocked === unlocked) continue;
+      view.unlocked = unlocked;
+      view.soil.material = unlocked ? materials.soil : materials.lockedGrass;
+      view.edge.setEnabled(unlocked);
+      view.furrows.forEach(mesh => mesh.setEnabled(unlocked));
+      view.lockDecor.setEnabled(!unlocked);
+    }
   }
 
   const marker = new B.TransformNode("hover outline",scene);
@@ -174,5 +200,5 @@ export function createWorld(scene) {
       if (root) root.rotation.z = Math.sin(ms*.00125 + i*.7) * .024;
     }
   }
-  return { plots, setHover, updatePlot, playWatering, animate };
+  return { plots, setHover, updatePlot, updateExpansion, playWatering, animate };
 }
