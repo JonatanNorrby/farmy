@@ -1,5 +1,6 @@
 import { CROPS, FARM, LEGACY_GRID, LEGACY_PLOT_COUNT, legacyPlotPosition } from "../config/crops.js";
 import { newFarm, SAVE_VERSION, onLand, roundPosition } from "./farm.js";
+import { LEGACY_STARTER_STOCK, validStock } from "../config/shop.js";
 
 // Retain the key through migrations so existing gardens are not lost.
 export const SAVE_KEY = "farmy-save-v1";
@@ -26,8 +27,12 @@ function validLevel(level) {
 function readCurrent(raw) {
   if (!validLevel(raw.landLevel) || !Array.isArray(raw.patches) ||
       raw.patches.length > FARM.maxPatches) return null;
+  // v5 had no shop: grant one starting bag without charging or altering the
+  // previous coins, crops, sprinklers or prepared ground.
+  const inventory = raw.version === SAVE_VERSION ? raw.inventory : { ...LEGACY_STARTER_STOCK };
+  if (!validStock(inventory)) return null;
   const state = { version: SAVE_VERSION, coins: raw.coins, harvested: raw.harvested,
-    landLevel: raw.landLevel, patches: [] };
+    landLevel: raw.landLevel, inventory: { ...inventory }, patches: [] };
   for (const patch of raw.patches) {
     if (!patch || !Number.isFinite(patch.x) || !Number.isFinite(patch.z) ||
         !onLand(state, patch, FARM.patchRadius)) return null;
@@ -52,12 +57,13 @@ function readLegacy(raw) {
     if (content !== null && !tilled[index]) return null;
     if (tilled[index]) patches.push({ ...legacyPlotPosition(index), content });
   }
-  return { version: SAVE_VERSION, coins: raw.coins, harvested: raw.harvested, landLevel, patches };
+  return { version: SAVE_VERSION, coins: raw.coins, harvested: raw.harvested, landLevel,
+    inventory: { ...LEGACY_STARTER_STOCK }, patches };
 }
 export function loadFarm(storage = globalThis.localStorage) {
   try {
     const raw = JSON.parse(storage.getItem(SAVE_KEY));
-    if (!raw || ![1, 2, 3, 4, SAVE_VERSION].includes(raw.version) || !validEconomy(raw)) return newFarm();
+    if (!raw || ![1, 2, 3, 4, 5, SAVE_VERSION].includes(raw.version) || !validEconomy(raw)) return newFarm();
     return (raw.version === SAVE_VERSION ? readCurrent(raw) : readLegacy(raw)) ?? newFarm();
   } catch {
     return newFarm();
