@@ -1,7 +1,7 @@
 import { newFarm, plant, water, harvest, expandFarm, onLand, findPatchIndex,
   paintSoil, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
 import { FARM } from "./config/crops.js";
-import { DRAG_THRESHOLD_PX } from "./render/cameraMovement.js";
+import { pointerGestureMode, crossedDragThreshold } from "./render/cameraMovement.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
 import { loadBrightness, saveBrightness } from "./game/settings.js";
 import { createScene } from "./render/scene.js";
@@ -127,19 +127,20 @@ function boot() {
     canvas.style.cursor = selectedTool === "plot" ? "crosshair" : "grab";
   }
   function beginGesture(event) {
-    if (gesture || (event.button !== 0 && event.button !== 2)) return;
+    if (gesture) return;
     const point = pointFromPointer();
-    const paint = event.button === 0 && selectedTool === "plot" &&
-      onLand(state, point, FARM.patchRadius);
+    const mode = pointerGestureMode(event.button, selectedTool,
+      onLand(state, point, FARM.patchRadius));
+    if (!mode) return;
     gesture = {
-      pointerId: event.pointerId, mode: event.button === 2 ? "pan" : paint ? "paint" : "pending",
+      pointerId: event.pointerId, mode,
       startX: event.clientX, startY: event.clientY,
       lastX: event.clientX, lastY: event.clientY,
-      startPoint: point, lastPaintPoint: paint ? point : null,
+      startPoint: point, lastPaintPoint: mode === "paint" ? point : null,
     };
     try { canvas.setPointerCapture(event.pointerId); } catch { /* Not supported by every device. */ }
     if (event.button === 2) event.preventDefault();
-    if (paint) {
+    if (mode === "paint") {
       const result = paintSoil(state, point, point);
       accept(result, Date.now(), result.message !== "Already prepared.");
     }
@@ -152,7 +153,7 @@ function boot() {
       let dx = event.clientX - gesture.lastX;
       let dy = event.clientY - gesture.lastY;
       if (gesture.mode === "pending" &&
-          Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) >= DRAG_THRESHOLD_PX) {
+          crossedDragThreshold(gesture.startX, gesture.startY, event.clientX, event.clientY)) {
         gesture.mode = "pan";
         dx = event.clientX - gesture.startX;
         dy = event.clientY - gesture.startY;
