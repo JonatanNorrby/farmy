@@ -10,12 +10,13 @@ function storage() {
   const values = new Map();
   return { getItem: k => values.get(k) ?? null, setItem: (k, v) => values.set(k, v), removeItem: k => values.delete(k) };
 }
-const rich = (coins = 500) => ({ ...newFarm(), coins });
+const rich = (coins = 500) => ({ ...newFarm(), coins, inventory: { wheat: 100, sprinkler: 100 } });
 const point = (x, z) => ({ x, z });
 
 test("new farms use four positioned patches and a continuous owned ground", () => {
   const farm = newFarm();
-  assert.equal(farm.version, 5);
+  assert.equal(farm.version, SAVE_VERSION);
+  assert.deepEqual(farm.inventory, { wheat: 0, sprinkler: 0 });
   assert.equal(farm.coins, 64);
   assert.equal(farm.landLevel, 2);
   assert.equal(farm.patches.length, 4);
@@ -41,7 +42,7 @@ test("soil can be painted at arbitrary coordinates, and repeat dabs are free", (
   assert.equal(createPlot(farm, point(50, 50)).ok, false);
   assert.equal(createPlot({ ...farm, coins: 0 }, at).ok, false);
   assert.equal(plant(farm, 4, "wheat", 1000).ok, false);
-  assert.equal(plant(result.state, 4, "wheat", 1000).ok, true);
+  assert.equal(plant(result.state, 4, "wheat", 1000).ok, false); // Seeds must be bought first.
 });
 
 test("painting a fast drag fills the entire line with overlapping soil marks", () => {
@@ -127,7 +128,8 @@ test("sprinklers cover world-space neighbors including diagonal patches", () => 
   const placed = placeSprinkler(next, 0, 2000);
   assert.equal(placed.ok, true);
   assert.deepEqual(placed.wateredIndices, [1, 2]);
-  assert.equal(placed.state.coins, next.coins - SPRINKLER.cost);
+  assert.equal(placed.state.coins, next.coins); // Sprinkler paid for in shop.
+  assert.equal(placed.state.inventory.sprinkler, next.inventory.sprinkler - 1);
   assert.equal(placed.state.patches[1].content.watered, true);
   assert.equal(placed.state.patches[2].content.watered, true);
   assert.equal(next.patches[1].content.watered, false);
@@ -157,7 +159,7 @@ test("sprinkler placement cannot rewater ripe or already watered crops", () => {
   assert.equal(late.state.patches[1].content.watered, false);
 });
 
-test("v5 saves roundtrip and reject malformed geometry or content", () => {
+test("v6 saves roundtrip and reject malformed geometry, content, or inventory", () => {
   const store = storage();
   const initial = rich();
   const painted = paintSoil(initial, point(-4, -.9), point(-1.7, -.9)).state;
@@ -168,6 +170,9 @@ test("v5 saves roundtrip and reject malformed geometry or content", () => {
   const invalid = [
     { ...initial, landLevel: 9 },
     { ...initial, coins: -1 },
+    { ...initial, inventory: { wheat: -1, sprinkler: 0 } },
+    { ...initial, inventory: { wheat: 0 } },
+    { ...initial, inventory: { wheat: 1, sprinkler: 0, fake: 1 } },
     { ...initial, patches: [{ x: 100, z: 100, content: null }] },
     { ...initial, patches: [{ x: NaN, z: 0, content: null }] },
     { ...initial, patches: [{ ...initial.patches[0], content: { kind: "sprinkler", extra: 1 } }] },
@@ -204,6 +209,7 @@ test("v1-v4 saves migrate all existing prepared patches and preserve old crops",
     assert.equal(migrated.version, SAVE_VERSION);
     assert.equal(migrated.coins, 31);
     assert.equal(migrated.harvested, 7);
+    assert.deepEqual(migrated.inventory, { wheat: 10, sprinkler: 0 });
     assert.equal(migrated.landLevel, version === 1 ? 4 : 3);
     const at = legacyPlotPosition(index);
     const patch = migrated.patches.find(p => p.x === at.x && p.z === at.z);
