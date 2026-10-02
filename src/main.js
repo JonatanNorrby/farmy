@@ -1,6 +1,7 @@
 import { PLOT_COUNT } from "./config/crops.js";
 import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked, placeSprinkler, isSprinkler, neighboringPlots } from "./game/farm.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
+import { loadBrightness, saveBrightness } from "./game/settings.js";
 import { createScene } from "./render/scene.js";
 import { createWorld } from "./render/world.js";
 import { createInterface } from "./ui/interface.js";
@@ -8,7 +9,9 @@ import { createInterface } from "./ui/interface.js";
 function boot() {
   const canvas = document.querySelector("#game");
   const loading = document.querySelector("#loading");
-  const { B, engine, scene, camera, resize } = createScene(canvas);
+  const { B, engine, scene, camera, resize, setBrightness } = createScene(canvas);
+  let brightness = loadBrightness();
+  setBrightness(brightness);
   const world = createWorld(scene);
   let state = loadFarm();
   let selectedTool = "wheat";
@@ -16,6 +19,11 @@ function boot() {
   let lastTick = 0;
 
   const ui = createInterface({
+    brightness,
+    onBrightnessChange(value) {
+      brightness = setBrightness(value);
+      saveBrightness(brightness);
+    },
     onToolChange(id) {
       selectedTool = id;
       ui.render(state, selectedTool, hovered);
