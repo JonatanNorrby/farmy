@@ -19,7 +19,6 @@ function boot() {
     onToolChange(id) {
       selectedTool = id;
       ui.render(state, selectedTool, hovered);
-      ui.notify(id === "water" ? "💧 Watering can selected" : "Selected " + id + " seeds");
     },
     onExpand() {
       const result = expandFarm(state);
@@ -38,7 +37,7 @@ function boot() {
       world.updateExpansion(state.unlockedRows);
       for (let i = 0; i < PLOT_COUNT; i++) world.updatePlot(i, null, -1);
       ui.render(state, selectedTool, hovered);
-      ui.notify("✿ Your fresh little garden is ready!");
+      ui.notify("Farm reset");
     },
   });
 
@@ -67,7 +66,7 @@ function boot() {
     else if (plot && now >= plot.readyAt) result = harvest(state, index, now);
     else if (selectedTool === "water") result = water(state, index, now);
     else if (plot) {
-      result = { ok: false, message: "Already planted! Try watering this crop or wait for harvest." };
+      result = { ok: false, message: "Already planted · Water or harvest" };
     } else result = plant(state, index, selectedTool, now);
 
     if (result.ok) {
