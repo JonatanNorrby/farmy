@@ -15,14 +15,14 @@ test("initial garden has twenty empty plots and starting coins", () => {
 });
 test("planting spends coins without mutating the previous state", () => {
   const original = newFarm();
-  const result = plant(original, 0, "carrot", 1000);
+  const result = plant(original, 0, "wheat", 1000);
   assert.equal(result.ok, true);
-  assert.equal(result.state.coins, original.coins - CROPS.carrot.cost);
-  assert.equal(result.state.plots[0].readyAt, 1000 + CROPS.carrot.growMs);
+  assert.equal(result.state.coins, original.coins - CROPS.wheat.cost);
+  assert.equal(result.state.plots[0].readyAt, 1000 + CROPS.wheat.growMs);
   assert.equal(original.plots[0], null);
-  assert.equal(plant(result.state, 0, "carrot", 1000).ok, false);
-  assert.equal(plant(original, -1, "carrot", 1000).ok, false);
-  assert.equal(plant(original, 20, "carrot", 1000).ok, false);
+  assert.equal(plant(result.state, 0, "wheat", 1000).ok, false);
+  assert.equal(plant(original, -1, "wheat", 1000).ok, false);
+  assert.equal(plant(original, 20, "wheat", 1000).ok, false);
   assert.equal(plant(original, 0, "bad-seed", 1000).ok, false);
 });
 test("watering reduces remaining growth once and cannot be reapplied", () => {
@@ -34,25 +34,25 @@ test("watering reduces remaining growth once and cannot be reapplied", () => {
   assert.equal(planted.plots[2].watered, false);
 });
 test("harvesting only ripe crops rewards coins and clears the patch", () => {
-  const planted = plant(newFarm(), 1, "pumpkin", 1000).state;
+  const planted = plant(newFarm(), 1, "wheat", 1000).state;
   assert.equal(harvest(planted, 1, 2000).ok, false);
   assert.equal(growthStage(planted.plots[1], 1000), 0);
-  assert.equal(secondsRemaining(planted.plots[1], 1000 + CROPS.pumpkin.growMs), 0);
+  assert.equal(secondsRemaining(planted.plots[1], 1000 + CROPS.wheat.growMs), 0);
   const finished = harvest(planted, 1, 1000 + CROPS.pumpkin.growMs);
   assert.equal(finished.ok, true);
   assert.equal(finished.state.harvested, 1);
-  assert.equal(finished.state.coins, 64 - CROPS.pumpkin.cost + CROPS.pumpkin.reward);
+  assert.equal(finished.state.coins, 64 - CROPS.wheat.cost + CROPS.wheat.reward);
   assert.equal(finished.state.plots[1], null);
   assert.equal(growthStage(planted.plots[1], Infinity), 3);
 });
 test("not enough coins blocks purchases", () => {
   const poor = { ...newFarm(), coins: 0 };
-  assert.equal(plant(poor, 1, "carrot", 1000).ok, false);
+  assert.equal(plant(poor, 1, "wheat", 1000).ok, false);
 });
 test("save round trip and corrupted saves fail safely", () => {
   const store = new Map();
   const storage = { getItem: k => store.get(k) ?? null, setItem: (k,v) => store.set(k,v), removeItem: k => store.delete(k) };
-  const planted = plant(newFarm(), 0, "carrot", 1000).state;
+  const planted = plant(newFarm(), 0, "wheat", 1000).state;
   assert.equal(saveFarm(planted, storage), true);
   assert.deepEqual(loadFarm(storage), planted);
   store.set("farmy-save-v1", '{"version":1,"coins":64,"harvested":0,"plots":[]}');
@@ -64,7 +64,7 @@ test("save round trip and corrupted saves fail safely", () => {
 
 test("a locked patch cannot be planted, watered, or harvested", () => {
   const farm = newFarm();
-  assert.equal(plant(farm, 10, "carrot", 1000).ok, false);
+  assert.equal(plant(farm, 10, "wheat", 1000).ok, false);
   assert.equal(water(farm, 10, 1000).ok, false);
   assert.equal(harvest(farm, 10, 1000).ok, false);
   assert.equal(farm.coins, 64);
@@ -123,7 +123,7 @@ test("sprinklers use one plot, charge once, and cannot overwrite crops or locked
   const poor = newFarm();
   assert.equal(placeSprinkler(poor, 0, 1000).ok, true); // Starting coins support one sprinkler.
   assert.equal(placeSprinkler(newFarm(), 10, 1000).ok, false);
-  const occupied = plant(newFarm(), 1, "carrot", 1000).state;
+  const occupied = plant(newFarm(), 1, "wheat", 1000).state;
   assert.equal(placeSprinkler(occupied, 1, 2000).ok, false);
   const placed = placeSprinkler(newFarm(), 6, 1000);
   assert.equal(placed.ok, true);
@@ -150,7 +150,7 @@ test("adjacency includes diagonals without wrapping rows or passing outside grid
 test("sprinkler placement immediately waters nearby growing crops once", () => {
   const rich = { ...newFarm(), coins: 200 };
   const cropOne = plant(rich, 1, "wheat", 1000).state;
-  const cropTwo = plant(cropOne, 5, "pumpkin", 1000).state;
+  const cropTwo = plant(cropOne, 5, "wheat", 1000).state;
   const before = cropTwo.plots[1].readyAt;
   const result = placeSprinkler(cropTwo, 6, 2000);
   assert.equal(result.ok, true);
@@ -168,11 +168,11 @@ test("sprinkler placement immediately waters nearby growing crops once", () => {
 test("new crops next to a sprinkler are automatically watered, including after harvest", () => {
   const rich = { ...newFarm(), coins: 200 };
   const sprinkler = placeSprinkler(rich, 6, 1000).state;
-  const planted = plant(sprinkler, 2, "carrot", 2000);
+  const planted = plant(sprinkler, 2, "wheat", 2000);
   assert.equal(planted.ok, true);
   assert.deepEqual(planted.wateredIndices, [2]);
   assert.equal(planted.state.plots[2].watered, true);
-  assert.equal(planted.state.plots[2].readyAt, 2000 + CROPS.carrot.growMs * .62);
+  assert.equal(planted.state.plots[2].readyAt, 2000 + CROPS.wheat.growMs * .62);
   const harvested = harvest(planted.state, 2, 50000);
   assert.equal(harvested.ok, true);
   const replanted = plant(harvested.state, 2, "wheat", 51000);
@@ -186,7 +186,7 @@ test("new crops next to a sprinkler are automatically watered, including after h
 
 test("watering a ripe crop does not change its timer when a sprinkler is placed", () => {
   const rich = { ...newFarm(), coins: 200 };
-  const ripe = plant(rich, 1, "carrot", 1000).state;
+  const ripe = plant(rich, 1, "wheat", 1000).state;
   const placed = placeSprinkler(ripe, 6, 50000);
   assert.deepEqual(placed.wateredIndices, []);
   assert.equal(placed.state.plots[1].readyAt, ripe.plots[1].readyAt);
@@ -217,4 +217,34 @@ test("sprinklers round-trip through storage, and old v2 farms migrate", () => {
   locked.plots[15] = { kind: "sprinkler" };
   store.set("farmy-save-v1", JSON.stringify(locked));
   assert.deepEqual(loadFarm(storage), newFarm());
+});
+
+test("wheat is the only plantable crop; legacy varieties remain viewable and harvestable", () => {
+  const fresh = newFarm();
+  for (const discontinued of ["carrot", "pumpkin"]) {
+    const rejected = plant(fresh, 0, discontinued, 1000);
+    assert.equal(rejected.ok, false);
+    assert.equal(rejected.state, fresh);
+  }
+  assert.equal(plant(fresh, 0, "wheat", 1000).ok, true);
+  const storageData = new Map();
+  const storage = { getItem: k => storageData.get(k) ?? null, setItem: (k, v) => storageData.set(k,v), removeItem: k => storageData.delete(k) };
+  const legacy = { version: 2, coins: 30, harvested: 4, unlockedRows: 2, plots: Array(PLOT_COUNT).fill(null) };
+  legacy.plots[0] = { cropId: "pumpkin", plantedAt: 1000, readyAt: 66000, watered: false };
+  legacy.plots[1] = { cropId: "carrot", plantedAt: 1000, readyAt: 26000, watered: false };
+  storage.set("farmy-save-v1", JSON.stringify(legacy));
+  const loaded = loadFarm(storage);
+  assert.equal(loaded.version, SAVE_VERSION);
+  assert.equal(loaded.plots[0].cropId, "pumpkin");
+  assert.equal(loaded.plots[1].cropId, "carrot");
+  const wateredLegacy = water(loaded, 1, 2000);
+  assert.equal(wateredLegacy.ok, true);
+  assert.equal(wateredLegacy.state.plots[1].watered, true);
+  const harvestedLegacy = harvest(wateredLegacy.state, 0, 100000);
+  assert.equal(harvestedLegacy.ok, true);
+  assert.equal(harvestedLegacy.state.coins, 30 + CROPS.pumpkin.reward);
+  assert.equal(harvestedLegacy.state.harvested, 5);
+  assert.equal(harvestedLegacy.state.plots[0], null);
+  assert.equal(plant(harvestedLegacy.state, 0, "pumpkin", 100001).ok, false);
+  assert.equal(plant(harvestedLegacy.state, 0, "wheat", 100001).ok, true);
 });
