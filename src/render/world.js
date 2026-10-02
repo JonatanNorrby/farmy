@@ -54,7 +54,6 @@ export function createWorld(scene) {
   // All twenty potential cells are pickable. Land ownership and preparation
   // are separate: owned grass turns into tilled soil only where the player builds a plot.
   const plots = [];
-  const westFenceSegments = [];
   for (let i = 0; i < PLOT_COUNT; i++) {
     const p = plotPosition(i);
     const edge = box("plot timber edge " + i, 2.03, .15, 2.03, p.x, .20, p.z, materials.plotEdge);
@@ -83,12 +82,6 @@ export function createWorld(scene) {
     farmLawn.position.z = FARM.firstZ + (unlockedRows - 1) * FARM.spacing / 2;
     const lawnDepth = unlockedRows * FARM.spacing + 1.4;
     farmLawn.scaling.z = lawnDepth / 10.2;
-    // Move the side fence forward as the underlying land grows.
-    const lawnFront = farmLawn.position.z + lawnDepth / 2;
-    for (const { z, post, rail } of westFenceSegments) {
-      post.setEnabled(z <= lawnFront + .01);
-      if (rail) rail.setEnabled(z + 1.4 <= lawnFront + .01);
-    }
     const count = unlockedRows * FARM.columns;
     for (let i = 0; i < plots.length; i++) {
       const view = plots[i], unlocked = i < count, prepared = unlocked && tilled[i] === true;
@@ -133,22 +126,6 @@ export function createWorld(scene) {
       buildCrop(scene, root, plot.cropId, stage, cropMaterials);
     }
     view.root = root;
-  }
-
-  // Back fence around the field. Each segment is a separate replaceable prop.
-  for (let x = -10.15; x <= 1.05; x += 1.4) {
-    box("fence rear post", .16, .79, .17, x, .48, -5.5, materials.woodLight);
-    if (x < 1) {
-      box("fence rear top rail", 1.38, .12, .09, x+.70, .67, -5.5, materials.cream);
-      box("fence rear low rail", 1.38, .10, .09, x+.70, .37, -5.5, materials.woodLight);
-    }
-  }
-  for (let z = -5.5; z <= 4.6; z += 1.4) {
-    const post = box("fence west post", .17, .79, .16, -10.15, .48, z, materials.woodLight);
-    const rail = z < 4.4
-      ? box("fence west rail", .09, .13, 1.38, -10.15, .61, z+.7, materials.cream)
-      : null;
-    westFenceSegments.push({ z, post, rail });
   }
 
   // Warm cottage with a layered roof, steps, windows and a flower box.
