@@ -1,11 +1,13 @@
 import { CROPS, FARM, SPRINKLER, PLANTABLE_CROPS, STARTER_PATCHES, landBounds } from "../config/crops.js";
+import { INITIAL_STOCK, MAX_STOCK, SHOP_ITEMS } from "../config/shop.js";
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 export const roundPosition = value => Math.round(value * 100) / 100;
 
 export function newFarm() {
   return {
     version: SAVE_VERSION, coins: 64, harvested: 0, landLevel: FARM.initialLevel,
+    inventory: { ...INITIAL_STOCK },
     patches: STARTER_PATCHES.map(({ x, z }) => ({ x, z, content: null })),
   };
 }
@@ -13,6 +15,22 @@ const failure = (state, message) => ({ ok: false, state, message });
 const validIndex = (state, index) => Number.isInteger(index) && index >= 0 && index < state.patches.length;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 export const isSprinkler = content => content?.kind === "sprinkler";
+
+// Purchases happen in the shop, not when the player clicks farmland.
+export function buyShopItem(state, id) {
+  const item = SHOP_ITEMS[id];
+  if (!item) return failure(state, "Unknown shop item.");
+  if (state.coins < item.cost) return failure(state, "Not enough coins.");
+  if (state.inventory[id] > MAX_STOCK - item.quantity) return failure(state, "Storage is full.");
+  return {
+    ok: true,
+    state: {
+      ...state, coins: state.coins - item.cost,
+      inventory: { ...state.inventory, [id]: state.inventory[id] + item.quantity },
+    },
+    message: item.icon + " Purchased " + item.name + " · +" + item.quantity,
+  };
+}
 
 export function onLand(state, point, inset = 0) {
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.z)) return false;
@@ -106,8 +124,10 @@ function wateredCrop(content, now) {
 export function placeSprinkler(state, index, now = Date.now()) {
   if (!validIndex(state, index)) return failure(state, "Paint soil first.");
   if (state.patches[index].content) return failure(state, "Soil already occupied.");
-  if (state.coins < SPRINKLER.cost) return failure(state, "Not enough coins.");
-  let next = withContent(state, index, { kind: "sprinkler" }, { coins: state.coins - SPRINKLER.cost });
+  if (state.inventory.sprinkler < 1) return failure(state, "Buy a sprinkler in Shop → Buildings.");
+  let next = withContent(state, index, { kind: "sprinkler" }, {
+    inventory: { ...state.inventory, sprinkler: state.inventory.sprinkler - 1 },
+  });
   const wateredIndices = [];
   for (let other = 0; other < next.patches.length; other++) {
     if (other === index || distance(next.patches[index], next.patches[other]) > SPRINKLER.radius) continue;
@@ -127,11 +147,13 @@ export function plant(state, index, cropId, now = Date.now()) {
   if (!PLANTABLE_CROPS.includes(cropId)) return failure(state, "Only wheat can be planted.");
   if (state.patches[index].content) return failure(state, "Soil already occupied.");
   const crop = CROPS[cropId];
-  if (state.coins < crop.cost) return failure(state, "Not enough coins.");
+  if (state.inventory.wheat < 1) return failure(state, "Buy wheat seed bags in Shop → Seeds.");
   const planted = { cropId, plantedAt: now, readyAt: now + crop.growMs, watered: false };
   const automatic = coveredBySprinkler(state, index) ? wateredCrop(planted, now) : null;
   return {
-    ok: true, state: withContent(state, index, automatic || planted, { coins: state.coins - crop.cost }),
+    ok: true, state: withContent(state, index, automatic || planted, {
+      inventory: { ...state.inventory, wheat: state.inventory.wheat - 1 },
+    }),
     wateredIndices: automatic ? [index] : [],
     message: crop.icon + " " + crop.name + " planted" + (automatic ? " · 💧" : ""),
   };
