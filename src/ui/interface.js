@@ -4,6 +4,8 @@ import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked } f
 export function createInterface({ onToolChange, onReset, onExpand }) {
   const coinLabel = document.querySelector("#coins");
   const harvestLabel = document.querySelector("#harvested");
+  const inspector = document.querySelector("#inspector");
+  const plotDetail = document.querySelector("#plot-detail");
   const title = document.querySelector("#inspect-title");
   const detail = document.querySelector("#inspect-text");
   const progress = document.querySelector("#inspect-progress");
@@ -19,61 +21,64 @@ export function createInterface({ onToolChange, onReset, onExpand }) {
   }
   expandButton.addEventListener("click", onExpand);
   document.querySelector("#reset").addEventListener("click", () => {
-    if (window.confirm("Start a fresh garden? Your current plants and coins will be reset.")) onReset();
+    if (window.confirm("Reset farm? This erases your saved progress.")) onReset();
   });
 
   function notify(message) {
+    if (!message) return;
     toast.textContent = message;
     toast.classList.add("visible");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove("visible"), 2800);
+    toastTimer = setTimeout(() => toast.classList.remove("visible"), 2300);
   }
 
   function render(state, tool, hovered, now = Date.now()) {
     coinLabel.textContent = state.coins;
     harvestLabel.textContent = state.harvested;
+
     const expansionCost = nextExpansionCost(state);
     expandButton.hidden = expansionCost === null;
     if (expansionCost !== null) {
-      expandButton.textContent = "↗ Unlock 5 plots · ✦ " + expansionCost;
+      expandButton.textContent = "↗ +5 plots · ✦ " + expansionCost;
       expandButton.disabled = state.coins < expansionCost;
-      expandButton.title = state.coins < expansionCost ? "Save up " + expansionCost + " coins to expand" : "Clear the next row of your farm";
+      expandButton.title = state.coins < expansionCost
+        ? "Requires " + expansionCost + " coins"
+        : "Unlock the next row";
     }
     for (const button of buttons) {
       const active = button.dataset.tool === tool;
       button.classList.toggle("selected", active);
       button.setAttribute("aria-pressed", String(active));
     }
-    if (hovered === null || hovered < 0 || hovered >= state.plots.length) {
-      title.textContent = "Your garden awaits";
-      detail.textContent = "Hover over or tap a garden plot to see what's happening.";
-      progress.style.width = "0%";
-      return;
-    }
+
+    const showPlot = hovered !== null && hovered >= 0 && hovered < state.plots.length;
+    plotDetail.hidden = !showPlot;
+    inspector.hidden = !showPlot && expansionCost === null;
+    if (!showPlot) return;
+
     if (!isPlotUnlocked(state, hovered)) {
-      title.textContent = "🌿 Untilled meadow";
-      detail.textContent = expansionCost === null ? "Your farm is fully expanded." :
-        "Clear row " + (state.unlockedRows + 1) + " for ✦ " + expansionCost + " to open five more plots.";
+      title.textContent = "Locked land";
+      detail.textContent = "Unlock the next row to plant here.";
       progress.style.width = "0%";
       return;
     }
     const plot = state.plots[hovered];
     if (!plot) {
-      title.textContent = "An empty patch";
-      detail.textContent = tool === "water" ? "Choose a seed first, then click this patch." : "Click here to plant your " + CROPS[tool].name.toLowerCase() + " seeds.";
+      title.textContent = "Empty plot";
+      detail.textContent = tool === "water"
+        ? "Select a seed."
+        : "Plant " + CROPS[tool].name.toLowerCase() + " · ✦ " + CROPS[tool].cost;
       progress.style.width = "0%";
       return;
     }
+
     const crop = CROPS[plot.cropId];
-    title.textContent = crop.icon + " " + crop.name;
     const remaining = secondsRemaining(plot, now);
-    if (remaining === 0) {
-      detail.textContent = "Ready to harvest! Click this patch to earn " + crop.reward + " coins.";
-      progress.style.width = "100%";
-    } else {
-      detail.textContent = remaining + "s until harvest" + (plot.watered ? " · freshly watered 💧" : " · use the watering can to speed it up");
-      progress.style.width = Math.round(growthProgress(plot, now) * 100) + "%";
-    }
+    title.textContent = crop.icon + " " + crop.name;
+    detail.textContent = remaining === 0
+      ? "Ready to harvest · +✦ " + crop.reward
+      : remaining + "s remaining" + (plot.watered ? " · 💧 watered" : " · 💧 speeds growth");
+    progress.style.width = Math.round(growthProgress(plot, now) * 100) + "%";
   }
 
   return { render, notify };
