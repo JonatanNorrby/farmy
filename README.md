@@ -7,6 +7,8 @@ A cozy, isometric 3D farming prototype built with Babylon.js and plain HTML/CSS/
 - Click an empty plot to buy and plant a seed.
 - Choose the watering can (key **4**) and click a growing plant once to speed it up, with a droplet-and-splash particle animation.
 - Click a mature crop with any tool to harvest it, earn coins, and plant again.
+- New farms start with 10 usable plots. Buy two more rows of five plots for **85** then **180** coins by clicking grassy locked land or the **Unlock 5 plots** button in garden notes.
+- Old v1 saves migrate automatically with all 20 original plots unlocked, preserving crops, harvests and coins.
 - Progress is automatically saved to this browser (localStorage). Crops also grow while the page is closed.
 - Mouse wheel zooms; the game works with touch controls too.
 
@@ -24,9 +26,9 @@ Then open http://localhost:8000.
 index.html                 App shell and UI
 styles.css                 Responsive HUD and styling
 src/main.js                Composition root, event wiring, render loop
-src/config/crops.js        Crop balancing and fixed farm layout
-src/game/farm.js           Pure, testable farm actions and growth logic
-src/game/storage.js        Defensive save/load with versioned localStorage
+src/config/crops.js        Crop balancing and row-expansion costs/geometry
+src/game/farm.js           Pure, testable farm actions, growth and expansion logic
+src/game/storage.js        Defensive save/load with v1 → v2 migration
 src/render/scene.js        Babylon engine scene, lighting, camera
 src/render/world.js        Ground, farm plots, cottage, vegetation
 src/render/cropMeshes.js   Procedural 3D crop models
