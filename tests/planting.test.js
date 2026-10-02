@@ -35,14 +35,16 @@ test("a continuous seed stroke follows world-space ground rather than the soil d
 });
 test("sowing a wide painted region fills multiple rows under the brush footprint", () => {
   let state = { ...newFarm(), coins: 500, inventory: { wheat: 100, sprinkler: 0 } };
-  for (const z of [-1.5,-.75,0]) {
-    state = paintSoil(state,point(-5,z),point(-1,z)).state;
+  for (const z of [-1.6,-.7,.2]) {
+    const painted = paintSoil(state,point(-5,z),point(-1,z));
+    assert.equal(painted.ok,true);
+    state = painted.state;
   }
-  const planted = paintSeeds(state,point(-5,-.75),point(-1,-.75),"wheat",1000);
+  const planted = paintSeeds(state,point(-5,-.7),point(-1,-.7),"wheat",1000);
   assert.equal(planted.ok,true);
   assert.ok(planted.state.plants.some(crop => crop.z < -1.1));
   assert.ok(planted.state.plants.some(crop => crop.z > -.4));
-  assert.ok(planted.state.plants.some(crop => Math.abs(crop.z+.75)<.1));
+  assert.ok(planted.state.plants.some(crop => Math.abs(crop.z+.7)<.1));
   assert.ok(planted.state.plants.every(crop => isPrepared(state,crop)));
   for(let i=0;i<planted.state.plants.length;i++)for(let j=0;j<i;j++){
     const a=planted.state.plants[i],b=planted.state.plants[j];
