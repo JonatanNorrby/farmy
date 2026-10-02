@@ -183,17 +183,26 @@ export function paintSeeds(state, from, to, cropId = "wheat", now = Date.now()) 
   if (state.inventory.wheat < 1) return failure(state, "Seed bag empty · Shop → Seeds.");
   const length = distance(from, to);
   const segments = Math.max(1, Math.ceil(length / (FARM.seedSpacing * .36)));
+  // Sweep a disc-shaped brush, not a line of eligible soil-stamp centers.
+  // Wide prepared regions can receive several independently spaced crop rows.
+  const sideX = length ? (from.z - to.z) / length * FARM.seedBrushRadius : 0;
+  const sideZ = length ? (to.x - from.x) / length * FARM.seedBrushRadius : 0;
+  const offsets = length ? [0, 1, -1] : [0];
   let next = state;
   const plantedIndices = [], wateredIndices = [];
   for (let i = 0; i <= segments; i++) {
     if (next.inventory.wheat < 1) break;
     const t = i / segments;
-    const point = { x: from.x + (to.x - from.x) * t, z: from.z + (to.z - from.z) * t };
-    const result = plant(next, point, cropId, now);
-    if (!result.ok) continue;
-    next = result.state;
-    plantedIndices.push(...result.plantedIndices);
-    wateredIndices.push(...result.wateredIndices);
+    const center = { x: from.x + (to.x - from.x) * t, z: from.z + (to.z - from.z) * t };
+    for (const side of offsets) {
+      if (next.inventory.wheat < 1) break;
+      const point = { x: center.x + side * sideX, z: center.z + side * sideZ };
+      const result = plant(next, point, cropId, now);
+      if (!result.ok) continue;
+      next = result.state;
+      plantedIndices.push(...result.plantedIndices);
+      wateredIndices.push(...result.wateredIndices);
+    }
   }
   return plantedIndices.length ? {
     ok: true, state: next, plantedIndices, wateredIndices,
