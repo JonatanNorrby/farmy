@@ -3,10 +3,10 @@
 A cozy, isometric 3D farming prototype built with Babylon.js and plain HTML/CSS/JavaScript. Hosted as a static site on GitHub Pages; no backend or build step.
 
 ## Play
-- Choose **Carrot**, **Wheat**, or **Pumpkin** in the toolbar (keys **1–3**).
+- **Wheat** is the only available seed (**1**). Existing saved carrots/pumpkins can still finish growing, receive water and be harvested, but cannot be replanted.
 - Click an empty plot to buy and plant a seed.
-- Choose the watering can (key **4**) and click a growing plant once to speed it up, with a droplet-and-splash particle animation.
-- Choose **Sprinkler** (key **5**) and place it on an empty unlocked plot for **36 coins**. It permanently occupies that plot and immediately waters any of the eight neighboring growing crops. Newly planted neighboring crops are automatically watered too (the one-time watering boost does not stack). Water jets and splashes show when automatic watering happens.
+- Choose the watering can (key **2**) and click a growing plant once to speed it up, with a droplet-and-splash particle animation.
+- Choose **Sprinkler** (key **3**) and place it on an empty unlocked plot for **36 coins**. It permanently occupies that plot and immediately waters any of the eight neighboring growing crops. Newly planted neighboring crops are automatically watered too (the one-time watering boost does not stack). Water jets and splashes show when automatic watering happens.
 - Click a mature crop with any tool to harvest it, earn coins, and plant again.
 - New farms start with 10 usable plots. Buy two more rows of five plots for **85** then **180** coins by clicking grassy locked land or the **Unlock 5 plots** button in garden notes.
 - Old v1 saves migrate automatically with all 20 original plots unlocked, preserving crops, harvests and coins.
@@ -41,7 +41,7 @@ tests/farm.test.js         Node built-in test runner
 ```
 
 ## Extend
-Keep crop/economy rules in `src/game/`, visual implementations in `src/render/`, UI in `src/ui/`, and balancing data in `src/config/`. The world is created from simple Babylon primitives and an in-memory particle texture without external textures or 3D assets, leaving room for GLB assets later. The save schema migrates earlier gardens without removing crops or purchased land.
+Keep crop/economy rules in `src/game/`, visual implementations in `src/render/`, UI in `src/ui/`, and balancing data in `src/config/`. The world is created from simple Babylon primitives and an in-memory particle texture without external textures or 3D assets, leaving room for GLB assets later. The save schema migrates earlier gardens without removing legacy crops or purchased land. The planting whitelist is separate from the historical crop catalog, allowing future crop availability changes without breaking saves.
 
 ## Deploy
 Go to **Settings → Pages → Build and deployment** and set source to **GitHub Actions** (once, if not already enabled). Pushes to `main` trigger `Deploy Farmy to Pages`. The site is expected at https://jonatannorrby.github.io/farmy/.
