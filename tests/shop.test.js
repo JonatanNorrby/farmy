@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { SHOP_ITEMS, INITIAL_STOCK, LEGACY_STARTER_STOCK, MAX_STOCK, validStock } from "../src/config/shop.js";
 import { CROPS, SPRINKLER } from "../src/config/crops.js";
-import { SAVE_VERSION, newFarm, buyShopItem, plant, harvest, placeSprinkler, isSprinkler } from "../src/game/farm.js";
+import { SAVE_VERSION, newFarm, buyShopItem, plant, harvest, sellHarvest, placeSprinkler, isSprinkler } from "../src/game/farm.js";
 import { SAVE_KEY, loadFarm, saveFarm } from "../src/game/storage.js";
 
 const storage = () => {
@@ -45,7 +45,12 @@ test("buying one bag adds 10 seeds once; planting consumes seeds without a secon
   const harvested = harvest(planted.state, 0, 1000 + CROPS.wheat.growMs + 1);
   assert.equal(harvested.ok, true);
   assert.equal(harvested.state.inventory.wheat, 9);
-  assert.equal(harvested.state.coins, purchase.state.coins + CROPS.wheat.reward);
+  assert.equal(harvested.state.coins, purchase.state.coins);
+  assert.equal(harvested.state.harvestBag.wheat, 1);
+  const sold = sellHarvest(harvested.state);
+  assert.equal(sold.ok, true);
+  assert.equal(sold.state.coins, purchase.state.coins + CROPS.wheat.reward);
+  assert.equal(sold.state.harvestBag.wheat, 0);
 });
 
 test("a wheat bag is finite and requires another purchase after ten uses", () => {
@@ -57,6 +62,7 @@ test("a wheat bag is finite and requires another purchase after ten uses", () =>
     state = harvest(planted.state, 0, now + CROPS.wheat.growMs + 1).state;
   }
   assert.equal(state.inventory.wheat, 0);
+  assert.equal(state.harvestBag.wheat, 10);
   const empty = plant(state, 0, "wheat", 1001000);
   assert.equal(empty.ok, false);
   assert.equal(empty.state, state);
