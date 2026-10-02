@@ -1,18 +1,19 @@
 import { plotPosition, PLOT_COUNT } from "../config/crops.js";
 import { buildCrop, createCropMaterials } from "./cropMeshes.js";
+import { createWateringEffect } from "./watering.js";
 
 export function createWorld(scene) {
   const B = globalThis.BABYLON;
   const materials = {};
   const colors = {
-    grass: "#a4c883", edge: "#81a767", earthSide: "#9b7351", earthBottom: "#6c5844",
-    field: "#9cbe75", plotEdge: "#bf9a6a", soil: "#786046", furrow: "#6d543b",
-    cream: "#f5e8bd", roof: "#b96f57", roofLight: "#c68160", wood: "#986949",
-    woodLight: "#c59565", door: "#795441", window: "#b9e5d9",
-    treeTrunk: "#98754d", tree: "#6b9a60", treeBright: "#80ac68", treeDark: "#558751",
-    waterRim: "#ded5a3", water: "#78b9aa", waterLight: "#a0d4b8",
-    rock: "#cbd0a6", flower: "#f8e9cf", flowerPink: "#e9a8a0", flowerYellow: "#eccc76",
-    bush: "#77a766", cloud: "#fff6db", chimney: "#9d8067",
+    grass: "#819f6d", edge: "#66875c", earthSide: "#846347", earthBottom: "#574638",
+    field: "#7e9c68", plotEdge: "#ab895e", soil: "#6c533d", furrow: "#59442f",
+    cream: "#e9d2a5", roof: "#ad6550", roofLight: "#bb7254", wood: "#84583e",
+    woodLight: "#af8254", door: "#664633", window: "#94c4b9",
+    treeTrunk: "#82613f", tree: "#567e53", treeBright: "#71975c", treeDark: "#456d47",
+    waterRim: "#bfb38a", water: "#659f98", waterLight: "#90c4ac",
+    rock: "#acb08d", flower: "#edddc1", flowerPink: "#d98f87", flowerYellow: "#dfb55e",
+    bush: "#648d58", cloud: "#e4d6b9", chimney: "#8b705a",
   };
   for (const [key, hex] of Object.entries(colors)) {
     const m = new B.StandardMaterial(key, scene);
@@ -23,6 +24,7 @@ export function createWorld(scene) {
   materials.water.alpha = .91;
   materials.window.emissiveColor = new B.Color3(.08,.1,.075);
   const cropMaterials = createCropMaterials(scene);
+  const wateringEffect = createWateringEffect(scene);
 
   function box(name, w, h, d, x, y, z, material, parent) {
     const mesh = B.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
@@ -168,11 +170,16 @@ export function createWorld(scene) {
     sphere("cotton cloud puff",x-.6,y+.12,z,1.18,.66,.76,materials.cloud);
   }
 
+  function playWatering(index) {
+    const plot = plots[index];
+    if (plot) wateringEffect.play(plot.position);
+  }
+
   function animate(ms) {
     for (let i=0;i<plots.length;i++) {
       const root = plots[i].root;
       if (root) root.rotation.z = Math.sin(ms*.00125 + i*.7) * .024;
     }
   }
-  return { plots, setHover, updatePlot, animate };
+  return { plots, setHover, updatePlot, playWatering, animate };
 }
