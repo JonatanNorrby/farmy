@@ -68,13 +68,13 @@ export function createWorld(scene) {
     const circle = B.MeshBuilder.CreateCylinder("painted soil " + index, {
       diameter: FARM.patchRadius * 2, height: .075, tessellation: 12,
     }, scene);
-    circle.position.set(patch.x, .13, patch.z);
+    circle.position.set(patch.x, .11, patch.z);
     circle.material = materials.soil;
     circle.isPickable = false;
     const furrows = [];
     for (const offset of [-.21, 0, .21]) {
       furrows.push(box("soft soil furrow", .78, .012, .07,
-        patch.x, .177, patch.z + offset, materials.furrow));
+        patch.x, .152, patch.z + offset, materials.furrow));
     }
     return { x: patch.x, z: patch.z, circle, furrows, root: null,
       sprinklerHead: null, stage: -99, displayId: null };
@@ -95,7 +95,7 @@ export function createWorld(scene) {
     view.displayId = displayId;
     if (!content) return;
     const root = new B.TransformNode("farm crop " + index, scene);
-    root.position.set(patch.x, .18, patch.z);
+    root.position.set(patch.x, .16, patch.z);
     if (displayId === "sprinkler") {
       view.sprinklerHead = buildSprinkler(scene, root, sprinklerMaterials);
     } else {
