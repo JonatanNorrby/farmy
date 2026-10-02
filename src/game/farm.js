@@ -1,12 +1,29 @@
-import { CROPS, PLOT_COUNT } from "../config/crops.js";
+import { CROPS, FARM, PLOT_COUNT } from "../config/crops.js";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export function newFarm() {
-  return { version: SAVE_VERSION, coins: 64, harvested: 0, plots: Array(PLOT_COUNT).fill(null) };
+  return { version: SAVE_VERSION, coins: 64, harvested: 0, unlockedRows: FARM.initialRows, plots: Array(PLOT_COUNT).fill(null) };
 }
 function failure(state, message) { return { ok: false, state, message }; }
 function validIndex(index) { return Number.isInteger(index) && index >= 0 && index < PLOT_COUNT; }
+export function unlockedPlotCount(state) { return state.unlockedRows * FARM.columns; }
+export function isPlotUnlocked(state, index) {
+  return validIndex(index) && index < unlockedPlotCount(state);
+}
+export function nextExpansionCost(state) {
+  return state.unlockedRows >= FARM.rows ? null : FARM.expansionCosts[state.unlockedRows - FARM.initialRows];
+}
+export function expandFarm(state) {
+  const cost = nextExpansionCost(state);
+  if (cost === null) return failure(state, "Your whole meadow is already yours.");
+  if (state.coins < cost) return failure(state, "You need " + cost + " coins to clear the next row.");
+  return {
+    ok: true,
+    state: { ...state, coins: state.coins - cost, unlockedRows: state.unlockedRows + 1 },
+    message: "🌱 New ground cleared! Five more plots are ready for seeds.",
+  };
+}
 function withPlot(state, index, plot, extra = {}) {
   const plots = state.plots.slice();
   plots[index] = plot;
@@ -14,7 +31,7 @@ function withPlot(state, index, plot, extra = {}) {
 }
 
 export function plant(state, index, cropId, now = Date.now()) {
-  if (!validIndex(index)) return failure(state, "That patch isn't available.");
+  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock this patch first.");
   const crop = CROPS[cropId];
   if (!crop) return failure(state, "Choose a seed first.");
   if (state.plots[index]) return failure(state, "This patch is already planted.");
@@ -27,7 +44,7 @@ export function plant(state, index, cropId, now = Date.now()) {
 }
 
 export function water(state, index, now = Date.now()) {
-  if (!validIndex(index)) return failure(state, "That patch isn't available.");
+  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock this patch first.");
   const plot = state.plots[index];
   if (!plot) return failure(state, "Plant a seed here first.");
   if (now >= plot.readyAt) return failure(state, "This crop is ready to harvest!");
@@ -42,7 +59,7 @@ export function water(state, index, now = Date.now()) {
 }
 
 export function harvest(state, index, now = Date.now()) {
-  if (!validIndex(index)) return failure(state, "That patch isn't available.");
+  if (!isPlotUnlocked(state, index)) return failure(state, "Unlock this patch first.");
   const plot = state.plots[index];
   if (!plot) return failure(state, "Nothing to harvest just yet.");
   if (now < plot.readyAt) return failure(state, "Still growing. Give it a little more time!");
