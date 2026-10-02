@@ -25,6 +25,11 @@
       <div class="counters" aria-live="polite">
         <div class="counter"><span class="counter-icon">✦</span><div><small>COINS</small><strong id="coins">64</strong></div></div>
         <div class="counter"><span class="counter-icon basket">❀</span><div><small>HARVESTS</small><strong id="harvested">0</strong></div></div>
+        <div class="counter harvest-counter" id="harvest-counter" aria-label="Harvest bag: 0 of 10 crops">
+          <span class="counter-icon basket" aria-hidden="true">▣</span>
+          <div class="bag-info"><small>HARVEST BAG</small><strong id="bag-count">0/10</strong></div>
+          <button id="sell-harvest" class="sell-harvest" type="button" aria-label="Sell harvest bag" disabled>Sell</button>
+        </div>
       </div>
     </header>
 
