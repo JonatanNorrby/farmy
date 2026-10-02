@@ -1,3 +1,5 @@
+import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
+
 // Babylon setup is deliberately isolated from simulation and UI.
 export function createScene(canvas) {
   const B = globalThis.BABYLON;
@@ -13,7 +15,15 @@ export function createScene(canvas) {
   scene.fogMode = B.Scene.FOGMODE_EXP2;
   scene.fogColor = new B.Color3(.54, .58, .49);
   scene.fogDensity = .003;
-  scene.imageProcessingConfiguration.exposure = .76;
+  // Brightness changes the image-processing exposure, not the sunlight's
+  // color or direction, preserving the warm late-afternoon art direction.
+  const baseExposure = .76;
+  function setBrightness(value) {
+    const brightness = normalizeBrightness(value);
+    scene.imageProcessingConfiguration.exposure = baseExposure * brightness / DEFAULT_BRIGHTNESS;
+    return brightness;
+  }
+  setBrightness(DEFAULT_BRIGHTNESS);
   scene.imageProcessingConfiguration.contrast = 1.12;
 
   // Lower-angle amber sunlight with cooler, much dimmer fill for depth.
@@ -69,5 +79,5 @@ export function createScene(canvas) {
     drag = { x: event.clientX, y: event.clientY };
   });
   resize();
-  return { B, engine, scene, camera, resize };
+  return { B, engine, scene, camera, resize, setBrightness };
 }
