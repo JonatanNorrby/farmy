@@ -1,4 +1,4 @@
-import { newFarm, plant, water, harvest, expandFarm, onLand, findPatchIndex,
+import { newFarm, buyShopItem, plant, water, harvest, expandFarm, onLand, findPatchIndex,
   paintSoil, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
 import { FARM } from "./config/crops.js";
 import { pointerGestureMode, crossedDragThreshold } from "./render/cameraMovement.js";
@@ -36,6 +36,12 @@ function boot() {
       endGesture(null, true);
       selectedTool = id;
       ui.render(state, selectedTool, hovered);
+      if ((id === "wheat" || id === "sprinkler") && state.inventory[id] === 0) {
+        ui.notify("Out of stock · Open Shop");
+      }
+    },
+    onBuy(id) {
+      accept(buyShopItem(state, id));
     },
     onExpand() {
       const result = expandFarm(state);
@@ -206,9 +212,10 @@ function boot() {
       (element.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(element.tagName));
   }
   const settingsPanel = document.querySelector("#settings-panel");
+  const shopPanel = document.querySelector("#shop-panel");
   window.addEventListener("keydown", event => {
     if (event.altKey || event.ctrlKey || event.metaKey || typingTarget(event.target) ||
-        !settingsPanel.hidden) return;
+        !settingsPanel.hidden || !shopPanel.hidden) return;
     if (cameraMovement.setKey(event.key, true)) {
       event.preventDefault();
       return;
@@ -241,7 +248,7 @@ function boot() {
   window.addEventListener("resize", resize);
   engine.runRenderLoop(() => {
     const now = Date.now();
-    if (cameraMovement.update(engine.getDeltaTime() / 1000, !gesture && settingsPanel.hidden)) {
+    if (cameraMovement.update(engine.getDeltaTime() / 1000, !gesture && settingsPanel.hidden && shopPanel.hidden)) {
       hovered = null;
       world.setHover(null);
     }
