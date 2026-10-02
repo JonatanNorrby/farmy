@@ -5,6 +5,10 @@ export const FARM = Object.freeze({
 });
 export const PLOT_COUNT = FARM.columns * FARM.rows;
 
+// Newly owned land remains meadow until the player chooses which tiles to till.
+export const PLOT_COST = 12;
+export const STARTER_PLOTS = Object.freeze([0, 1, FARM.columns, FARM.columns + 1]);
+
 // A sprinkler occupies one plot and covers the eight surrounding grid cells.
 export const SPRINKLER = Object.freeze({ id: "sprinkler", name: "Sprinkler", cost: 36, radius: 1, icon: "💦" });
 
