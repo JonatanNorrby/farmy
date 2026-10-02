@@ -1,13 +1,17 @@
 import { CROPS, SPRINKLER, FARM } from "../config/crops.js";
 import { SHOP_ITEMS, MAX_STOCK } from "../config/shop.js";
+import { HARVEST_BAG_CAPACITY, harvestBagCount, harvestBagValue } from "../config/harvest.js";
 import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
 import { growthProgress, nextExpansionCost, secondsRemaining, findPatchIndex, onLand, isSprinkler } from "../game/farm.js";
 
 export function createInterface({
-  onToolChange, onBuy, onReset, onExpand, onBrightnessChange, brightness = DEFAULT_BRIGHTNESS,
+  onToolChange, onBuy, onSell, onReset, onExpand, onBrightnessChange, brightness = DEFAULT_BRIGHTNESS,
 }) {
   const coinLabel = document.querySelector("#coins");
   const harvestLabel = document.querySelector("#harvested");
+  const harvestCounter = document.querySelector("#harvest-counter");
+  const bagCountLabel = document.querySelector("#bag-count");
+  const sellButton = document.querySelector("#sell-harvest");
   const inspector = document.querySelector("#inspector");
   const plotDetail = document.querySelector("#plot-detail");
   const title = document.querySelector("#inspect-title");
@@ -119,6 +123,7 @@ export function createInterface({
     if (button.dataset.tool === "plot") button.querySelector(".tool-cost").textContent = "✦ " + FARM.patchCost;
   }
   expandButton.addEventListener("click", onExpand);
+  sellButton.addEventListener("click", onSell);
   document.querySelector("#reset").addEventListener("click", () => {
     if (window.confirm("Reset farm? This erases your saved progress.")) onReset();
   });
@@ -133,6 +138,14 @@ export function createInterface({
   function render(state, tool, hovered, now = Date.now()) {
     coinLabel.textContent = state.coins;
     harvestLabel.textContent = state.harvested;
+    const held = harvestBagCount(state.harvestBag);
+    const value = harvestBagValue(state.harvestBag);
+    bagCountLabel.textContent = held + "/" + HARVEST_BAG_CAPACITY;
+    harvestCounter.classList.toggle("full", held === HARVEST_BAG_CAPACITY);
+    harvestCounter.setAttribute("aria-label", "Harvest bag: " + held + " of " + HARVEST_BAG_CAPACITY + " crops");
+    sellButton.disabled = held === 0;
+    sellButton.textContent = held ? "Sell ✦ " + value : "Sell";
+    sellButton.setAttribute("aria-label", held ? "Sell " + held + " harvested crops for " + value + " coins" : "Harvest bag empty");
     shopCoins.textContent = "✦ " + state.coins;
     for (const item of Object.values(SHOP_ITEMS)) {
       document.querySelector("#stock-" + item.id).textContent = state.inventory[item.id];
@@ -206,7 +219,7 @@ export function createInterface({
     const remaining = secondsRemaining(content, now);
     title.textContent = crop.icon + " " + crop.name;
     detail.textContent = remaining === 0
-      ? "Ready to harvest · +✦ " + crop.reward
+      ? held >= HARVEST_BAG_CAPACITY ? "Bag full · Sell your harvest first" : "Ready to collect · Bag " + held + "/" + HARVEST_BAG_CAPACITY
       : remaining + "s remaining" + (content.watered ? " · 💧 watered" : " · 💧 speeds growth");
     progress.style.width = Math.round(growthProgress(content, now) * 100) + "%";
   }
