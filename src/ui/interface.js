@@ -2,7 +2,7 @@ import { CROPS, SPRINKLER, FARM } from "../config/crops.js";
 import { SHOP_ITEMS, MAX_STOCK } from "../config/shop.js";
 import { HARVEST_BAG_CAPACITY, harvestBagCount, harvestBagValue } from "../config/harvest.js";
 import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
-import { growthProgress, nextExpansionCost, secondsRemaining, findPatchIndex, onLand, isSprinkler } from "../game/farm.js";
+import { growthProgress, nextExpansionCost, secondsRemaining, isPrepared, findPlantIndex, findSprinklerIndex, onLand } from "../game/farm.js";
 
 export function createInterface({
   onToolChange, onBuy, onSell, onReset, onExpand, onBrightnessChange, brightness = DEFAULT_BRIGHTNESS,
@@ -178,50 +178,54 @@ export function createInterface({
     plotDetail.hidden = !showPoint;
     inspector.hidden = !showPoint && expansionCost === null;
     if (!showPoint) return;
-    if (!onLand(state, hovered, FARM.patchRadius)) {
+    if (!onLand(state, hovered)) {
       progress.parentElement.hidden = true;
       title.textContent = "Unowned land";
       detail.textContent = expansionCost === null ? "Farm fully expanded." : "Expand land · ✦ " + expansionCost;
       progress.style.width = "0%";
       return;
     }
-    const index = findPatchIndex(state, hovered);
-    if (index === -1) {
-      progress.parentElement.hidden = true;
-      title.textContent = "Grass";
-      detail.textContent = tool === "plot"
-        ? "Click and drag to paint soil · ✦ " + FARM.patchCost + " / dab"
-        : "Use Plot (4) to paint soil.";
-      progress.style.width = "0%";
-      return;
-    }
-    const content = state.patches[index].content;
-    if (!content) {
-      progress.parentElement.hidden = true;
-      title.textContent = "Prepared soil";
-      detail.textContent = tool === "water" ? "Select Wheat (1)." :
-        tool === SPRINKLER.id
-          ? state.inventory.sprinkler ? "Place sprinkler · × " + state.inventory.sprinkler : "Buy a sprinkler in Shop → Buildings." :
-        tool === "plot" ? "Already painted · Select Wheat (1)." :
-        state.inventory.wheat ? "Click or drag to sow · × " + state.inventory.wheat + " seeds" : "Buy a wheat seed bag in Shop → Seeds.";
-      progress.style.width = "0%";
-      return;
-    }
-    if (isSprinkler(content)) {
+    // Plants/buildings are independent world-space entities, not soil contents.
+    const plantIndex = findPlantIndex(state, hovered);
+    const sprinklerIndex = findSprinklerIndex(state, hovered);
+    const content = plantIndex >= 0 ? state.plants[plantIndex] : null;
+    const sprinkler = sprinklerIndex >= 0 ? state.sprinklers[sprinklerIndex] : null;
+    const showSprinkler = sprinkler && (!content ||
+      Math.hypot(sprinkler.x - hovered.x, sprinkler.z - hovered.z) <=
+      Math.hypot(content.x - hovered.x, content.z - hovered.z));
+    if (showSprinkler) {
       progress.parentElement.hidden = true;
       title.textContent = "💦 Sprinkler";
       detail.textContent = "Automatically waters nearby wheat.";
       progress.style.width = "0%";
       return;
     }
-    progress.parentElement.hidden = false;
-    const crop = CROPS[content.cropId];
-    const remaining = secondsRemaining(content, now);
-    title.textContent = crop.icon + " " + crop.name;
-    detail.textContent = remaining === 0
-      ? held >= HARVEST_BAG_CAPACITY ? "Bag full · Sell your harvest first" : "Ready to collect · Bag " + held + "/" + HARVEST_BAG_CAPACITY
-      : remaining + "s remaining" + (content.watered ? " · 💧 watered" : " · 💧 speeds growth");
-    progress.style.width = Math.round(growthProgress(content, now) * 100) + "%";
+    if (content) {
+      progress.parentElement.hidden = false;
+      const crop = CROPS[content.cropId];
+      const remaining = secondsRemaining(content, now);
+      title.textContent = crop.icon + " " + crop.name;
+      detail.textContent = remaining === 0
+        ? held >= HARVEST_BAG_CAPACITY ? "Bag full · Sell your harvest first" : "Ready to collect · Bag " + held + "/" + HARVEST_BAG_CAPACITY
+        : remaining + "s remaining" + (content.watered ? " · 💧 watered" : " · 💧 speeds growth");
+      progress.style.width = Math.round(growthProgress(content, now) * 100) + "%";
+      return;
+    }
+    progress.parentElement.hidden = true;
+    progress.style.width = "0%";
+    if (!isPrepared(state, hovered)) {
+      title.textContent = "Grass";
+      detail.textContent = tool === "plot"
+        ? "Click and drag to paint soil · ✦ " + FARM.patchCost + " / dab"
+        : "Use Plot (4) to paint soil.";
+      return;
+    }
+    title.textContent = "Prepared soil";
+    detail.textContent = tool === "water" ? "Select Wheat (1)." :
+      tool === SPRINKLER.id
+        ? state.inventory.sprinkler ? "Place sprinkler · × " + state.inventory.sprinkler : "Buy a sprinkler in Shop → Buildings." :
+      tool === "plot" ? "Already painted · Select Wheat (1)." :
+      state.inventory.wheat ? "Click or drag to sow · × " + state.inventory.wheat + " seeds" : "Buy a wheat seed bag in Shop → Seeds.";
   }
   return { render, notify };
 }
