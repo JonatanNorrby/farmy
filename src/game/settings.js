@@ -15,6 +15,11 @@ export function normalizeBrightness(value) {
     Math.round(number / BRIGHTNESS_STEP) * BRIGHTNESS_STEP));
 }
 
+// Pure conversion for the renderer: 100% retains Farmy's original exposure.
+export function exposureForBrightness(value, baseExposure = .76) {
+  return baseExposure * normalizeBrightness(value) / DEFAULT_BRIGHTNESS;
+}
+
 export function loadBrightness(storage) {
   try {
     const store = storage ?? globalThis.localStorage;
