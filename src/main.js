@@ -1,5 +1,5 @@
 import { newFarm, buyShopItem, plant, water, harvest, expandFarm, onLand, findPatchIndex,
-  paintSoil, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
+  paintSoil, paintSeeds, placeSprinkler, isSprinkler, nearbySprinkler } from "./game/farm.js";
 import { FARM } from "./config/crops.js";
 import { pointerGestureMode, crossedDragThreshold } from "./render/cameraMovement.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
@@ -117,9 +117,9 @@ function boot() {
     accept(result, now, true, index);
   }
 
-  // A short press is a farm interaction. A movement beyond the threshold
-  // switches to panning BEFORE any seed, sprinkler, water or harvest is spent.
-  // Plot mode paints from pointerdown; right-drag pans in every tool.
+  // A short press is still a normal farm interaction (including harvesting).
+  // Wheat left-drag from prepared soil paints seeds; from bare grass it pans.
+  // Plot left-drag paints soil. Right-drag always pans without spending stock.
   function endGesture(event, cancelled = false) {
     if (!gesture || (event && event.pointerId !== gesture.pointerId)) return;
     const ended = gesture;
@@ -127,22 +127,31 @@ function boot() {
     if (canvas.hasPointerCapture?.(ended.pointerId)) {
       canvas.releasePointerCapture(ended.pointerId);
     }
-    if (!cancelled && ended.mode === "pending" && ended.startPoint) {
+    if (!cancelled && (ended.mode === "pending" || ended.mode === "seed-pending") &&
+        ended.startPoint) {
       interact(ended.startPoint);
+    }
+    if (!cancelled && ended.mode === "seed" && ended.plantedTotal > 0) {
+      ui.notify("🌾 Painted " + ended.plantedTotal + " seed" +
+        (ended.plantedTotal === 1 ? "" : "s") +
+        (state.inventory.wheat === 0 ? " · Bag empty" : ""));
     }
     canvas.style.cursor = selectedTool === "plot" ? "crosshair" : "grab";
   }
   function beginGesture(event) {
     if (gesture) return;
     const point = pointFromPointer();
-    const mode = pointerGestureMode(event.button, selectedTool,
-      onLand(state, point, FARM.patchRadius));
+    const onOwnedLand = onLand(state, point, FARM.patchRadius);
+    const seedable = selectedTool === "wheat" && state.inventory.wheat > 0 &&
+      findPatchIndex(state, point, FARM.seedBrushRadius) !== -1;
+    const mode = pointerGestureMode(event.button, selectedTool, onOwnedLand, seedable);
     if (!mode) return;
     gesture = {
       pointerId: event.pointerId, mode,
       startX: event.clientX, startY: event.clientY,
       lastX: event.clientX, lastY: event.clientY,
       startPoint: point, lastPaintPoint: mode === "paint" ? point : null,
+      lastSeedPoint: mode === "seed-pending" ? point : null, plantedTotal: 0,
     };
     try { canvas.setPointerCapture(event.pointerId); } catch { /* Not supported by every device. */ }
     if (event.button === 2) event.preventDefault();
@@ -151,18 +160,22 @@ function boot() {
       accept(result, Date.now(), result.message !== "Already prepared.");
     }
     canvas.style.cursor = gesture.mode === "pan" ? "grabbing" :
-      selectedTool === "plot" ? "crosshair" : "grab";
+      selectedTool === "plot" || gesture.mode === "seed-pending" ? "crosshair" : "grab";
   }
   function moveGesture(event) {
     const point = pointFromPointer();
     if (gesture && gesture.pointerId === event.pointerId) {
       let dx = event.clientX - gesture.lastX;
       let dy = event.clientY - gesture.lastY;
-      if (gesture.mode === "pending" &&
+      if ((gesture.mode === "pending" || gesture.mode === "seed-pending") &&
           crossedDragThreshold(gesture.startX, gesture.startY, event.clientX, event.clientY)) {
-        gesture.mode = "pan";
-        dx = event.clientX - gesture.startX;
-        dy = event.clientY - gesture.startY;
+        if (gesture.mode === "seed-pending") {
+          gesture.mode = "seed";
+        } else {
+          gesture.mode = "pan";
+          dx = event.clientX - gesture.startX;
+          dy = event.clientY - gesture.startY;
+        }
       }
       gesture.lastX = event.clientX;
       gesture.lastY = event.clientY;
@@ -183,10 +196,21 @@ function boot() {
           gesture.lastPaintPoint = null; // Never bridge a stroke through unowned land.
         }
       }
+      if (gesture.mode === "seed") {
+        if (point && gesture.lastSeedPoint && state.inventory.wheat > 0) {
+          const result = paintSeeds(state, gesture.lastSeedPoint, point, "wheat", Date.now());
+          accept(result, Date.now(), false);
+          if (result.ok) gesture.plantedTotal += result.plantedIndices.length;
+        }
+        // Never bridge missing pointer positions when returning to the canvas.
+        gesture.lastSeedPoint = point;
+      }
     }
     hovered = point;
     world.setHover(point);
-    canvas.style.cursor = selectedTool === "plot" ? "crosshair" : "grab";
+    const seedHover = selectedTool === "wheat" && state.inventory.wheat > 0 &&
+      findPatchIndex(state, point, FARM.seedBrushRadius) !== -1;
+    canvas.style.cursor = selectedTool === "plot" || seedHover ? "crosshair" : "grab";
     ui.render(state, selectedTool, hovered);
   }
 
@@ -204,6 +228,7 @@ function boot() {
     hovered = null;
     world.setHover(null);
     if (gesture?.mode === "paint") gesture.lastPaintPoint = null;
+    if (gesture?.mode === "seed") gesture.lastSeedPoint = null;
     ui.render(state, selectedTool, hovered);
   });
 
