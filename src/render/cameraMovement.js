@@ -6,6 +6,17 @@ import { FARM, landBounds } from "../config/crops.js";
 export const DRAG_THRESHOLD_PX = 6;
 export const KEY_PAN_SPEED = 4.5; // Orthographic screen-world units / second.
 
+// Delay left-click actions until release so dragging a tool cannot
+// accidentally plant, water, harvest or purchase land.
+export function pointerGestureMode(button, tool, paintable) {
+  if (button === 2) return "pan";
+  if (button !== 0) return null;
+  return tool === "plot" && paintable ? "paint" : "pending";
+}
+export function crossedDragThreshold(startX, startY, x, y) {
+  return Math.hypot(x - startX, y - startY) >= DRAG_THRESHOLD_PX;
+}
+
 export function groundDelta(right, up, screenRight, screenUp) {
   const det = right.x * up.z - right.z * up.x;
   if (!Number.isFinite(det) || Math.abs(det) < 1e-5) return { x: 0, z: 0 };
