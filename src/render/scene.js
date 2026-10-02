@@ -1,4 +1,4 @@
-import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
+import { DEFAULT_BRIGHTNESS, normalizeBrightness, exposureForBrightness } from "../game/settings.js";
 
 // Babylon setup is deliberately isolated from simulation and UI.
 export function createScene(canvas) {
@@ -20,7 +20,7 @@ export function createScene(canvas) {
   const baseExposure = .76;
   function setBrightness(value) {
     const brightness = normalizeBrightness(value);
-    scene.imageProcessingConfiguration.exposure = baseExposure * brightness / DEFAULT_BRIGHTNESS;
+    scene.imageProcessingConfiguration.exposure = exposureForBrightness(brightness, baseExposure);
     return brightness;
   }
   setBrightness(DEFAULT_BRIGHTNESS);
