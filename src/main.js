@@ -1,5 +1,5 @@
 import { PLOT_COUNT } from "./config/crops.js";
-import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked, placeSprinkler, isSprinkler, neighboringPlots } from "./game/farm.js";
+import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked, isFarmPlot, createPlot, placeSprinkler, isSprinkler, neighboringPlots } from "./game/farm.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
 import { loadBrightness, saveBrightness } from "./game/settings.js";
 import { createScene } from "./render/scene.js";
@@ -33,7 +33,7 @@ function boot() {
       if (result.ok) {
         state = result.state;
         saveFarm(state);
-        world.updateExpansion(state.unlockedRows);
+        world.updateExpansion(state.unlockedRows, state.tilled);
       }
       ui.render(state, selectedTool, hovered);
       ui.notify(result.message);
@@ -42,7 +42,7 @@ function boot() {
       clearFarm();
       state = newFarm();
       saveFarm(state);
-      world.updateExpansion(state.unlockedRows);
+      world.updateExpansion(state.unlockedRows, state.tilled);
       for (let i = 0; i < PLOT_COUNT; i++) world.updatePlot(i, null, -1);
       ui.render(state, selectedTool, hovered);
       ui.notify("Farm reset");
@@ -55,7 +55,7 @@ function boot() {
       world.updatePlot(i, plot, growthStage(plot, now));
     }
   }
-  world.updateExpansion(state.unlockedRows);
+  world.updateExpansion(state.unlockedRows, state.tilled);
   updatePlants(Date.now());
   ui.render(state, selectedTool, hovered);
 
@@ -71,8 +71,13 @@ function boot() {
     const plot = state.plots[index];
     let result;
     if (!isPlotUnlocked(state, index)) result = expandFarm(state);
+    else if (!isFarmPlot(state, index)) {
+      result = selectedTool === "plot" ? createPlot(state, index) :
+        { ok: false, message: "Prepare a plot first · Tool 4" };
+    }
     else if (isSprinkler(plot)) result = { ok: false, message: "💦 Sprinkler active · waters adjacent plots" };
     else if (plot && now >= plot.readyAt) result = harvest(state, index, now);
+    else if (selectedTool === "plot") result = { ok: false, message: "Plot already prepared" };
     else if (selectedTool === "water") result = water(state, index, now);
     else if (plot) {
       result = { ok: false, message: "Already planted · Water or harvest" };
@@ -82,7 +87,7 @@ function boot() {
     if (result.ok) {
       state = result.state;
       saveFarm(state);
-      world.updateExpansion(state.unlockedRows);
+      world.updateExpansion(state.unlockedRows, state.tilled);
       updatePlants(now);
       // Farming results identify crops that have JUST become watered. Particle
       // effects are visual only and never re-apply the simulation bonus.
@@ -126,7 +131,7 @@ function boot() {
   window.addEventListener("keydown", event => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
-    const choices = { "1": "wheat", "2": "water", "3": "sprinkler" };
+    const choices = { "1": "wheat", "2": "water", "3": "sprinkler", "4": "plot" };
     if (choices[event.key]) {
       selectedTool = choices[event.key];
       ui.render(state, selectedTool, hovered);
