@@ -30,13 +30,14 @@ button { font: inherit; cursor: pointer; }
 }
 .brand { font: 800 31px/1 Georgia, serif; letter-spacing: -1.9px; color: #315a43; }
 .brand span { color: #f4ab63; }
-.reset-button, .settings-toggle {
+.reset-button, .settings-toggle, .shop-toggle {
   pointer-events: auto; display: grid; place-items: center; width: 31px; height: 31px;
   margin-left: 6px; padding: 0; border: 1px solid #d1ceb1; border-radius: 10px;
   background: #e8dfc8e8; color: #58785d; font-size: 22px; line-height: 1;
 }
-.reset-button:hover, .settings-toggle:hover { background: #f1e5cf; color: #a6634e; }
+.reset-button:hover, .settings-toggle:hover, .shop-toggle:hover { background: #f1e5cf; color: #a6634e; }
 .settings-toggle { margin-left: 0; font-size: 19px; }
+.shop-toggle { width: auto; margin-left: 0; padding: 0 11px; font-size: 12px; font-weight: 900; letter-spacing: .1px; }
 .settings-panel {
   position: absolute; top: 91px; left: 32px; z-index: 8;
   width: min(265px, calc(100vw - 24px)); padding: 16px;
@@ -44,7 +45,30 @@ button { font: inherit; cursor: pointer; }
   box-shadow: 0 14px 34px #443b2a36, 0 3px 0 #aba58a;
   color: #42654e;
 }
-.settings-panel[hidden] { display: none; }
+.settings-panel[hidden], .shop-panel[hidden], .shop-content[hidden] { display: none; }
+.shop-panel {
+  position: absolute; z-index: 9; top: 91px; left: 32px;
+  width: min(365px, calc(100vw - 24px)); padding: 15px;
+  border: 1px solid #efe2c9; border-radius: 16px; background: #e8dec8f7;
+  color: #42654e; box-shadow: 0 14px 34px #443b2a36, 0 3px 0 #aba58a;
+}
+.shop-heading { display: flex; align-items: center; gap: 10px; }
+.shop-heading strong { font: bold 19px Georgia, serif; margin-right: auto; }
+.shop-coins { color: #98722f; font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.shop-close { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: #d5d2ba; color: #55775b; font-size: 21px; }
+.shop-close:hover { background: #c6d5b8; }
+.shop-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 15px 0 12px; padding: 4px; border-radius: 11px; background: #d5d5bd; }
+.shop-tabs button { padding: 9px 6px; border: 0; border-radius: 8px; background: transparent; color: #6c826e; font-size: 12px; font-weight: 900; }
+.shop-tabs button[aria-selected="true"] { background: #f1ead8; color: #385a40; box-shadow: 0 2px 5px #554f3620; }
+.shop-item { display: flex; align-items: center; gap: 10px; padding: 12px 9px; border: 1px solid #d7d3b9; border-radius: 12px; background: #e6e4cf; }
+.shop-icon { display: grid; place-items: center; flex-shrink: 0; width: 37px; height: 38px; border-radius: 9px; background: #d5dfbf; font-size: 24px; }
+.shop-item-text { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.shop-item-text strong { font-size: 12px; }
+.shop-item-text small { color: #6e876d; font-size: 10px; line-height: 1.3; }
+.shop-buy { flex-shrink: 0; border: 1px solid #668967; border-bottom: 3px solid #527657; padding: 8px; border-radius: 9px; background: #b9d1ac; color: #355c3e; font-size: 11px; font-weight: 900; }
+.shop-buy:hover:not(:disabled) { background: #d0dfb8; }
+.shop-buy:disabled { background: #d1cfb9; color: #878672; border-color: #b8b7a2; cursor: not-allowed; }
+.shop-toggle:focus-visible, .shop-close:focus-visible, .shop-tabs button:focus-visible, .shop-buy:focus-visible { outline: 3px solid #426e5b; outline-offset: 3px; }
 .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; font: bold 18px Georgia, serif; }
 .settings-close { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: #d5d2ba; color: #55775b; font: 23px/1 sans-serif; }
 .settings-close:hover { background: #c6d5b8; }
@@ -146,7 +170,8 @@ button { font: inherit; cursor: pointer; }
   .brand-mark { width: 37px; height: 37px; font-size: 24px; }
   .brand { font-size: 24px; }
   .reset-button, .settings-toggle { width: 28px; height: 28px; margin-left: 2px; font-size: 18px; }
-  .settings-panel { top: 58px; left: 12px; }
+  .shop-toggle { height: 28px; margin-left: 0; padding: 0 7px; font-size: 11px; }
+  .settings-panel, .shop-panel { top: 58px; left: 12px; }
   .counters { gap: 5px; }
   .counter { gap: 4px; min-width: 65px; padding: 6px; }
   .counter-icon { font-size: 16px; }
@@ -168,4 +193,12 @@ button { font: inherit; cursor: pointer; }
   .topbar { top: 14px; }
   .inspector { top: 78px; }
   .toolbar { bottom: 12px; }
+}
+
+@media (max-width: 390px) {
+  .topbar { flex-wrap: wrap; }
+  .identity { gap: 4px; }
+  .counters { width: 100%; justify-content: flex-end; }
+  .settings-panel, .shop-panel { top: 100px; }
+  .inspector { top: 116px; }
 }
