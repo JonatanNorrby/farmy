@@ -1,7 +1,8 @@
 import { CROPS, SPRINKLER } from "../config/crops.js";
+import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
 import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked, isSprinkler } from "../game/farm.js";
 
-export function createInterface({ onToolChange, onReset, onExpand }) {
+export function createInterface({ onToolChange, onReset, onExpand, onBrightnessChange, brightness = DEFAULT_BRIGHTNESS }) {
   const coinLabel = document.querySelector("#coins");
   const harvestLabel = document.querySelector("#harvested");
   const inspector = document.querySelector("#inspector");
@@ -12,6 +13,46 @@ export function createInterface({ onToolChange, onReset, onExpand }) {
   const toast = document.querySelector("#toast");
   const expandButton = document.querySelector("#expand-farm");
   const buttons = Array.from(document.querySelectorAll("[data-tool]"));
+  const settingsToggle = document.querySelector("#settings-toggle");
+  const settingsPanel = document.querySelector("#settings-panel");
+  const settingsClose = document.querySelector("#settings-close");
+  const brightnessSlider = document.querySelector("#brightness");
+  const brightnessValue = document.querySelector("#brightness-value");
+  const brightnessReset = document.querySelector("#brightness-reset");
+  function displayBrightness(value) {
+    const normalized = normalizeBrightness(value);
+    brightnessSlider.value = String(normalized);
+    brightnessValue.value = normalized + "%";
+    brightnessValue.textContent = normalized + "%";
+    return normalized;
+  }
+  displayBrightness(brightness);
+  function setSettingsOpen(open) {
+    settingsPanel.hidden = !open;
+    settingsToggle.setAttribute("aria-expanded", String(open));
+    settingsToggle.setAttribute("aria-label", open ? "Close settings" : "Open settings");
+    if (open) brightnessSlider.focus();
+  }
+  settingsToggle.addEventListener("click", () => setSettingsOpen(settingsPanel.hidden));
+  settingsClose.addEventListener("click", () => {
+    setSettingsOpen(false);
+    settingsToggle.focus();
+  });
+  function changeBrightness(value) {
+    onBrightnessChange(displayBrightness(value));
+  }
+  brightnessSlider.addEventListener("input", () => changeBrightness(brightnessSlider.value));
+  brightnessReset.addEventListener("click", () => changeBrightness(DEFAULT_BRIGHTNESS));
+  document.addEventListener("pointerdown", event => {
+    if (!settingsPanel.hidden && !settingsPanel.contains(event.target) &&
+        !settingsToggle.contains(event.target)) setSettingsOpen(false);
+  });
+  window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !settingsPanel.hidden) {
+      setSettingsOpen(false);
+      settingsToggle.focus();
+    }
+  });
   let toastTimer;
 
   for (const button of buttons) {
