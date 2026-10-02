@@ -44,6 +44,7 @@ src/render/watering.js      Reusable watering particle feedback
 src/ui/interface.js         Shop tabs, tool stock counters, inspector and settings
 tests/farm.test.js          Soil brush, stock-aware crops, sprinklers and migrations
 tests/shop.test.js          Shop purchase rules, inventory safety and older save migration
+tests/interface.test.js     Shop tab interactions, purchase callbacks and stock UI
 tests/world.test.js         Ground composition and painted soil render tests
 tests/cameraMovement.test.js Camera direction, drag, zoom and keyboard movement tests
 tests/cropMeshes.test.js    Wheat growth/geometry tests
