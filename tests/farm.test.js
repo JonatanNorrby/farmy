@@ -232,7 +232,7 @@ test("wheat is the only plantable crop; legacy varieties remain viewable and har
   const legacy = { version: 2, coins: 30, harvested: 4, unlockedRows: 2, plots: Array(PLOT_COUNT).fill(null) };
   legacy.plots[0] = { cropId: "pumpkin", plantedAt: 1000, readyAt: 66000, watered: false };
   legacy.plots[1] = { cropId: "carrot", plantedAt: 1000, readyAt: 26000, watered: false };
-  storage.set("farmy-save-v1", JSON.stringify(legacy));
+  storageData.set("farmy-save-v1", JSON.stringify(legacy));
   const loaded = loadFarm(storage);
   assert.equal(loaded.version, SAVE_VERSION);
   assert.equal(loaded.plots[0].cropId, "pumpkin");
