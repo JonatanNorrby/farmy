@@ -36,6 +36,7 @@ export function coveredBySprinkler(state, index) {
 
 // Share the same one-time watering reduction for manual and automatic watering.
 function wateredCrop(plot, now) {
+  if (!plot || isSprinkler(plot)) return null;
   const crop = CROPS[plot.cropId];
   if (!crop || plot.watered || now >= plot.readyAt) return null;
   return { ...plot, watered: true, readyAt: Math.max(now + 2500, plot.readyAt - crop.growMs * .38) };
