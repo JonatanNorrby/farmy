@@ -94,11 +94,11 @@ button { font: inherit; cursor: pointer; }
 
 .toolbar {
   position: absolute; z-index: 5; bottom: 24px; left: 50%; transform: translateX(-50%);
-  width: min(520px, calc(100vw - 30px)); padding: 10px; border: 1px solid #f2e3c6;
+  width: min(660px, calc(100vw - 30px)); padding: 10px; border: 1px solid #f2e3c6;
   border-radius: 18px; background: #e8ddc5f5;
   box-shadow: 0 14px 45px #39362847, 0 4px 0 #9e9f7a;
 }
-.tools { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.tools { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
 .tool {
   position: relative; display: flex; align-items: center; min-width: 0; min-height: 65px;
   gap: 9px; padding: 10px 8px 12px; border: 1px solid #cbcbb2; border-bottom: 3px solid #b9bba1;
@@ -115,6 +115,7 @@ button { font: inherit; cursor: pointer; }
 .tool-icon.wheat { background: #ebe4c5; }
 .tool-icon.water { background: #c7dfe2; }
 .tool-icon.sprinkler { background: #c1d9d3; }
+.tool-icon.plot { background: #e5d4b8; }
 .tool-details { display: flex; min-width: 0; }
 .tool-details strong { font-size: 12px; }
 .tool-cost { position: absolute; right: 7px; bottom: 4px; font-size: 9px; font-weight: 900; color: #a9822d; }
