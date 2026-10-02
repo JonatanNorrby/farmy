@@ -64,7 +64,7 @@ export function loadFarm(storage = globalThis.localStorage) {
   try {
     const raw = JSON.parse(storage.getItem(SAVE_KEY));
     if (!raw || ![1, 2, 3, 4, 5, SAVE_VERSION].includes(raw.version) || !validEconomy(raw)) return newFarm();
-    return (raw.version === SAVE_VERSION ? readCurrent(raw) : readLegacy(raw)) ?? newFarm();
+    return (raw.version >= 5 ? readCurrent(raw) : readLegacy(raw)) ?? newFarm();
   } catch {
     return newFarm();
   }
