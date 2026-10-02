@@ -5,6 +5,9 @@ export const FARM = Object.freeze({
 });
 export const PLOT_COUNT = FARM.columns * FARM.rows;
 
+// A sprinkler occupies one plot and covers the eight surrounding grid cells.
+export const SPRINKLER = Object.freeze({ id: "sprinkler", name: "Sprinkler", cost: 36, radius: 1, icon: "💦" });
+
 export const CROPS = Object.freeze({
   carrot: Object.freeze({ id: "carrot", name: "Carrot", icon: "🥕", cost: 4, reward: 12, growMs: 25000 }),
   wheat: Object.freeze({ id: "wheat", name: "Wheat", icon: "🌾", cost: 6, reward: 19, growMs: 42000 }),
