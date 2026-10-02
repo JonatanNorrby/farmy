@@ -103,7 +103,7 @@ test("shop rejects unknown, unaffordable or over-capacity transactions without m
 
 test("v6 saves retain purchased inventory; v5 migration grants starter seeds without altering old assets", () => {
   const store = storage();
-  const purchased = buyShopItem(buyShopItem(newFarm(), "wheat").state, "sprinkler").state;
+  const purchased = buyShopItem(buyShopItem({ ...newFarm(), coins: 100 }, "wheat").state, "sprinkler").state;
   assert.ok(saveFarm(purchased, store));
   assert.deepEqual(loadFarm(store), purchased);
   const old = { ...newFarm(), version: 5, coins: 123, harvested: 7 };
