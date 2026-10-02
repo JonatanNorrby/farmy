@@ -67,5 +67,51 @@ export function createWateringEffect(scene) {
     }, 280);
   }
 
-  return { play };
+  // A compact outward spray from a sprinkler nozzle to a specific crop. The
+  // simulation decides who is watered; particles are just one-shot feedback.
+  function spray(source, target) {
+    const dx = target.x - source.x;
+    const dz = target.z - source.z;
+    const length = Math.hypot(dx, dz) || 1;
+    const stream = system("sprinkler spray", 75);
+    stream.emitter = new B.Vector3(source.x, 1.48, source.z);
+    stream.minEmitBox = new B.Vector3(-.06, 0, -.06);
+    stream.maxEmitBox = new B.Vector3(.06, .04, .06);
+    const speed = length / .72;
+    const velocity = new B.Vector3(dx / length * speed, .75, dz / length * speed);
+    stream.direction1 = velocity.scale(.93);
+    stream.direction2 = velocity.scale(1.07);
+    stream.minEmitPower = .93;
+    stream.maxEmitPower = 1.07;
+    stream.gravity = new B.Vector3(0, -5.0, 0);
+    stream.minSize = .045;
+    stream.maxSize = .095;
+    stream.minLifeTime = .58;
+    stream.maxLifeTime = .79;
+    stream.emitRate = 135;
+    stream.targetStopDuration = .23;
+    stream.start();
+
+    const splash = system("sprinkler splash", 34);
+    splash.emitter = new B.Vector3(target.x, .45, target.z);
+    splash.minEmitBox = new B.Vector3(-.22, 0, -.22);
+    splash.maxEmitBox = new B.Vector3(.22, .02, .22);
+    splash.direction1 = new B.Vector3(-.5, .8, -.5);
+    splash.direction2 = new B.Vector3(.5, 1.25, .5);
+    splash.minEmitPower = .55;
+    splash.maxEmitPower = .85;
+    splash.gravity = new B.Vector3(0, -4.3, 0);
+    splash.minSize = .035;
+    splash.maxSize = .075;
+    splash.minLifeTime = .25;
+    splash.maxLifeTime = .42;
+    splash.emitRate = 130;
+    splash.targetStopDuration = .15;
+    window.setTimeout(() => {
+      if (!scene.isDisposed) splash.start();
+      else splash.dispose();
+    }, 510);
+  }
+
+  return { play, spray };
 }
