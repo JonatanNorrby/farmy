@@ -34,6 +34,10 @@ button { font: inherit; cursor: pointer; }
 .text-button:hover { color: #a6634e; }
 .inspector { position: absolute; pointer-events: none; z-index: 2; right: 36px; top: 153px; width: 205px; padding: 16px 18px; background: #e8dec8e8; border: 1px solid #efe2c9; border-radius: 17px; box-shadow: 0 9px 25px #4d3d2b2c; }
 .inspect-title { font: bold 17px Georgia,serif; margin-top: 10px; color: #42654e; }
+.expand-button { display: block; pointer-events: auto; width: 100%; margin-top: 13px; padding: 10px 9px; border: 1px solid #668967; border-bottom: 3px solid #527657; background: #b9d1ac; border-radius: 9px; color: #355c3e; font-size: 11px; font-weight: 900; transition: background .15s, transform .15s; }
+.expand-button:hover:not(:disabled) { background: #d0dfb8; transform: translateY(-1px); }
+.expand-button:disabled { background: #d1cfb9; color: #92907a; border-color: #b8b7a2; cursor: not-allowed; }
+.expand-button[hidden] { display: none; }
 .inspector p { min-height: 31px; font-size: 11px; line-height: 1.5; color: #809281; }
 .progress-track { height: 7px; background: #e3e9d8; border-radius: 99px; overflow: hidden; }
 .progress-fill { background: linear-gradient(90deg,#9ebd71,#5e9f6d); height: 100%; border-radius: inherit; width: 0; transition: width .4s; }
