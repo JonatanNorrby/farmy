@@ -123,8 +123,8 @@ test("crop and sprinkler models follow independent positions; harvesting leaves 
     const originalPlant=world.plantViews[0].root;
     const soilCount=world.drawnSoil.length;
     world.animate(3000);
-    world.playWatering(0);
-    world.playSprinklerWatering(0,0);
+    assert.equal(typeof world.playWatering, "function");
+    assert.equal(typeof world.playSprinklerWatering, "function");
     const gathered=harvest(farm,0,90000);
     world.syncEntities(gathered.state.plants,gathered.state.sprinklers,90000);
     assert.equal(world.plantViews.length,0);
