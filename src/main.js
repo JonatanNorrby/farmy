@@ -61,6 +61,10 @@ function boot() {
       state = result.state;
       saveFarm(state);
       updatePlants(now);
+      // Visual feedback only: particle animation never changes farming rules.
+      if (selectedTool === "water" && plot && result.state.plots[index]?.watered) {
+        world.playWatering(index);
+      }
     }
     ui.render(state, selectedTool, hovered, now);
     ui.notify(result.message);
