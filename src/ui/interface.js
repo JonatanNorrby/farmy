@@ -1,6 +1,6 @@
-import { CROPS, SPRINKLER, PLOT_COST } from "../config/crops.js";
+import { CROPS, SPRINKLER, FARM } from "../config/crops.js";
 import { DEFAULT_BRIGHTNESS, normalizeBrightness } from "../game/settings.js";
-import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked, isFarmPlot, isSprinkler } from "../game/farm.js";
+import { growthProgress, nextExpansionCost, secondsRemaining, findPatchIndex, onLand, isSprinkler } from "../game/farm.js";
 
 export function createInterface({ onToolChange, onReset, onExpand, onBrightnessChange, brightness = DEFAULT_BRIGHTNESS }) {
   const coinLabel = document.querySelector("#coins");
@@ -57,7 +57,7 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
 
   for (const button of buttons) {
     const id = button.dataset.tool;
-    if (CROPS[id] || id === SPRINKLER.id || id === "plot") button.querySelector(".tool-cost").textContent = "✦ " + (id === "plot" ? PLOT_COST : (CROPS[id] || SPRINKLER).cost);
+    if (CROPS[id] || id === SPRINKLER.id || id === "plot") button.querySelector(".tool-cost").textContent = "✦ " + (id === "plot" ? FARM.patchCost : (CROPS[id] || SPRINKLER).cost);
     button.addEventListener("click", () => onToolChange(id));
   }
   expandButton.addEventListener("click", onExpand);
@@ -80,7 +80,7 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
     const expansionCost = nextExpansionCost(state);
     expandButton.hidden = expansionCost === null;
     if (expansionCost !== null) {
-      expandButton.textContent = "↗ +5 land · ✦ " + expansionCost;
+      expandButton.textContent = "↗ Expand land · ✦ " + expansionCost;
       expandButton.disabled = state.coins < expansionCost;
       expandButton.title = state.coins < expansionCost
         ? "Requires " + expansionCost + " coins"
@@ -92,54 +92,55 @@ export function createInterface({ onToolChange, onReset, onExpand, onBrightnessC
       button.setAttribute("aria-pressed", String(active));
     }
 
-    const showPlot = hovered !== null && hovered >= 0 && hovered < state.plots.length;
-    plotDetail.hidden = !showPlot;
-    inspector.hidden = !showPlot && expansionCost === null;
-    if (!showPlot) return;
+    const showPoint = hovered !== null;
+    plotDetail.hidden = !showPoint;
+    inspector.hidden = !showPoint && expansionCost === null;
+    if (!showPoint) return;
 
-    if (!isPlotUnlocked(state, hovered)) {
+    if (!onLand(state, hovered, FARM.patchRadius)) {
       progress.parentElement.hidden = true;
       title.textContent = "Unowned land";
-      detail.textContent = "Expand your land first · ✦ " + expansionCost;
+      detail.textContent = expansionCost === null ? "Farm fully expanded." :
+        "Expand land · ✦ " + expansionCost;
       progress.style.width = "0%";
       return;
     }
-    if (!isFarmPlot(state, hovered)) {
+    const index = findPatchIndex(state, hovered);
+    if (index === -1) {
       progress.parentElement.hidden = true;
       title.textContent = "Grass";
       detail.textContent = tool === "plot"
-        ? "Create plot · ✦ " + PLOT_COST
-        : "Use Plot (4) to prepare soil here.";
+        ? "Click and drag to paint soil · ✦ " + FARM.patchCost + " / dab"
+        : "Use Plot (4) to paint soil.";
       progress.style.width = "0%";
       return;
     }
-    const plot = state.plots[hovered];
-    if (!plot) {
+    const content = state.patches[index].content;
+    if (!content) {
       progress.parentElement.hidden = true;
-      title.textContent = "Empty plot";
+      title.textContent = "Prepared soil";
       detail.textContent = tool === "water" ? "Select Wheat (1)." :
         tool === SPRINKLER.id ? "Place sprinkler · ✦ " + SPRINKLER.cost :
-        tool === "plot" ? "Already prepared · Select Wheat (1)." :
-        "Plant " + CROPS[tool].name.toLowerCase() + " · ✦ " + CROPS[tool].cost;
+        tool === "plot" ? "Already painted · Select Wheat (1)." :
+        "Plant wheat · ✦ " + CROPS.wheat.cost;
       progress.style.width = "0%";
       return;
     }
-    if (isSprinkler(plot)) {
+    if (isSprinkler(content)) {
       progress.parentElement.hidden = true;
       title.textContent = "💦 Sprinkler";
-      detail.textContent = "Automatically waters up to 8 adjacent plots.";
+      detail.textContent = "Automatically waters nearby wheat.";
       progress.style.width = "0%";
       return;
     }
-
     progress.parentElement.hidden = false;
-    const crop = CROPS[plot.cropId];
-    const remaining = secondsRemaining(plot, now);
+    const crop = CROPS[content.cropId];
+    const remaining = secondsRemaining(content, now);
     title.textContent = crop.icon + " " + crop.name;
     detail.textContent = remaining === 0
       ? "Ready to harvest · +✦ " + crop.reward
-      : remaining + "s remaining" + (plot.watered ? " · 💧 watered" : " · 💧 speeds growth");
-    progress.style.width = Math.round(growthProgress(plot, now) * 100) + "%";
+      : remaining + "s remaining" + (content.watered ? " · 💧 watered" : " · 💧 speeds growth");
+    progress.style.width = Math.round(growthProgress(content, now) * 100) + "%";
   }
 
   return { render, notify };
