@@ -1,5 +1,5 @@
 import { PLOT_COUNT } from "./config/crops.js";
-import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked } from "./game/farm.js";
+import { newFarm, plant, water, harvest, growthStage, expandFarm, isPlotUnlocked, placeSprinkler, isSprinkler, neighboringPlots } from "./game/farm.js";
 import { loadFarm, saveFarm, clearFarm } from "./game/storage.js";
 import { createScene } from "./render/scene.js";
 import { createWorld } from "./render/world.js";
@@ -63,20 +63,30 @@ function boot() {
     const plot = state.plots[index];
     let result;
     if (!isPlotUnlocked(state, index)) result = expandFarm(state);
+    else if (isSprinkler(plot)) result = { ok: false, message: "💦 Sprinkler active · waters adjacent plots" };
     else if (plot && now >= plot.readyAt) result = harvest(state, index, now);
     else if (selectedTool === "water") result = water(state, index, now);
     else if (plot) {
       result = { ok: false, message: "Already planted · Water or harvest" };
-    } else result = plant(state, index, selectedTool, now);
+    } else if (selectedTool === "sprinkler") result = placeSprinkler(state, index, now);
+    else result = plant(state, index, selectedTool, now);
 
     if (result.ok) {
       state = result.state;
       saveFarm(state);
       world.updateExpansion(state.unlockedRows);
       updatePlants(now);
-      // Visual feedback only: particle animation never changes farming rules.
-      if (selectedTool === "water" && plot && result.state.plots[index]?.watered) {
-        world.playWatering(index);
+      // Farming results identify crops that have JUST become watered. Particle
+      // effects are visual only and never re-apply the simulation bonus.
+      for (const targetIndex of result.wateredIndices ?? []) {
+        if (selectedTool === "water") {
+          world.playWatering(targetIndex);
+          continue;
+        }
+        const sprinklerIndex = isSprinkler(state.plots[index]) ? index :
+          neighboringPlots(targetIndex).find(other => isPlotUnlocked(state, other) && isSprinkler(state.plots[other]));
+        if (sprinklerIndex === undefined) world.playWatering(targetIndex);
+        else world.playSprinklerWatering(sprinklerIndex, targetIndex);
       }
     }
     ui.render(state, selectedTool, hovered, now);
@@ -108,7 +118,7 @@ function boot() {
   window.addEventListener("keydown", event => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
-    const choices = { "1": "carrot", "2": "wheat", "3": "pumpkin", "4": "water" };
+    const choices = { "1": "carrot", "2": "wheat", "3": "pumpkin", "4": "water", "5": "sprinkler" };
     if (choices[event.key]) {
       selectedTool = choices[event.key];
       ui.render(state, selectedTool, hovered);
