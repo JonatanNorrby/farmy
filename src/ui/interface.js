@@ -1,5 +1,5 @@
-import { CROPS } from "../config/crops.js";
-import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked } from "../game/farm.js";
+import { CROPS, SPRINKLER } from "../config/crops.js";
+import { growthProgress, nextExpansionCost, secondsRemaining, isPlotUnlocked, isSprinkler } from "../game/farm.js";
 
 export function createInterface({ onToolChange, onReset, onExpand }) {
   const coinLabel = document.querySelector("#coins");
@@ -16,7 +16,7 @@ export function createInterface({ onToolChange, onReset, onExpand }) {
 
   for (const button of buttons) {
     const id = button.dataset.tool;
-    if (CROPS[id]) button.querySelector(".tool-cost").textContent = "✦ " + CROPS[id].cost;
+    if (CROPS[id] || id === SPRINKLER.id) button.querySelector(".tool-cost").textContent = "✦ " + (CROPS[id] || SPRINKLER).cost;
     button.addEventListener("click", () => onToolChange(id));
   }
   expandButton.addEventListener("click", onExpand);
@@ -57,6 +57,7 @@ export function createInterface({ onToolChange, onReset, onExpand }) {
     if (!showPlot) return;
 
     if (!isPlotUnlocked(state, hovered)) {
+      progress.parentElement.hidden = true;
       title.textContent = "Locked land";
       detail.textContent = "Unlock the next row to plant here.";
       progress.style.width = "0%";
@@ -64,14 +65,23 @@ export function createInterface({ onToolChange, onReset, onExpand }) {
     }
     const plot = state.plots[hovered];
     if (!plot) {
+      progress.parentElement.hidden = true;
       title.textContent = "Empty plot";
-      detail.textContent = tool === "water"
-        ? "Select a seed."
-        : "Plant " + CROPS[tool].name.toLowerCase() + " · ✦ " + CROPS[tool].cost;
+      detail.textContent = tool === "water" ? "Select a seed." :
+        tool === SPRINKLER.id ? "Place sprinkler · ✦ " + SPRINKLER.cost :
+        "Plant " + CROPS[tool].name.toLowerCase() + " · ✦ " + CROPS[tool].cost;
+      progress.style.width = "0%";
+      return;
+    }
+    if (isSprinkler(plot)) {
+      progress.parentElement.hidden = true;
+      title.textContent = "💦 Sprinkler";
+      detail.textContent = "Automatically waters up to 8 adjacent plots.";
       progress.style.width = "0%";
       return;
     }
 
+    progress.parentElement.hidden = false;
     const crop = CROPS[plot.cropId];
     const remaining = secondsRemaining(plot, now);
     title.textContent = crop.icon + " " + crop.name;
