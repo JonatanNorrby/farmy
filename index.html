@@ -11,7 +11,7 @@
 </head>
 <body>
   <main class="app">
-    <canvas id="game" aria-label="Interactive 3D isometric farm"></canvas>
+    <canvas id="game" aria-label="Interactive 3D farm. WASD moves the camera; drag to pan; right-drag pans while painting; mouse wheel zooms."></canvas>
     <div class="vignette" aria-hidden="true"></div>
 
     <header class="topbar">
@@ -38,6 +38,7 @@
       </label>
       <input id="brightness" class="brightness-slider" type="range" min="50" max="150" step="5" value="100" aria-label="Scene brightness">
       <div class="settings-footer"><span>50%</span><button id="brightness-reset" type="button">Reset</button><span>150%</span></div>
+      <p class="settings-help">WASD to move · Drag to pan · Right-drag when painting · Scroll to zoom</p>
     </section>
 
     <aside id="inspector" class="inspector" aria-label="Selected plot and expansion">
