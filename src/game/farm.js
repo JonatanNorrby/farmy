@@ -43,11 +43,12 @@ export function expandFarm(state) {
   };
 }
 export function createPlot(state, point) {
-  if (!onLand(state, point, FARM.patchRadius)) return failure(state, "Expand land first.");
+  const stamp = point && { x: roundPosition(point.x), z: roundPosition(point.z) };
+  if (!onLand(state, stamp, FARM.patchRadius)) return failure(state, "Expand land first.");
   if (state.patches.length >= FARM.maxPatches) return failure(state, "Farm is full.");
-  if (findPatchIndex(state, point, FARM.brushSpacing) !== -1) return failure(state, "Already prepared.");
+  if (findPatchIndex(state, stamp, FARM.brushSpacing) !== -1) return failure(state, "Already prepared.");
   if (state.coins < FARM.patchCost) return failure(state, "Need ✦ " + FARM.patchCost + " for soil.");
-  const patch = { x: roundPosition(point.x), z: roundPosition(point.z), content: null };
+  const patch = { ...stamp, content: null };
   return {
     ok: true,
     state: { ...state, coins: state.coins - FARM.patchCost, patches: [...state.patches, patch] },
