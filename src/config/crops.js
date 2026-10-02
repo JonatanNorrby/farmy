@@ -1,6 +1,7 @@
 // All crop tuning and plot geometry live here.
 export const FARM = Object.freeze({
-  columns: 5, rows: 4, firstX: -8.6, firstZ: -3.5, spacing: 2.2,
+  columns: 5, rows: 4, initialRows: 2, expansionCosts: Object.freeze([85, 180]),
+  firstX: -8.6, firstZ: -3.5, spacing: 2.2,
 });
 export const PLOT_COUNT = FARM.columns * FARM.rows;
 
