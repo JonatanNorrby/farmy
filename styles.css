@@ -75,11 +75,11 @@ button { font: inherit; cursor: pointer; }
 
 .toolbar {
   position: absolute; z-index: 5; bottom: 24px; left: 50%; transform: translateX(-50%);
-  width: min(800px, calc(100vw - 30px)); padding: 10px; border: 1px solid #f2e3c6;
+  width: min(520px, calc(100vw - 30px)); padding: 10px; border: 1px solid #f2e3c6;
   border-radius: 18px; background: #e8ddc5f5;
   box-shadow: 0 14px 45px #39362847, 0 4px 0 #9e9f7a;
 }
-.tools { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; }
+.tools { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
 .tool {
   position: relative; display: flex; align-items: center; min-width: 0; min-height: 65px;
   gap: 9px; padding: 10px 8px 12px; border: 1px solid #cbcbb2; border-bottom: 3px solid #b9bba1;
@@ -93,9 +93,7 @@ button { font: inherit; cursor: pointer; }
   display: grid; place-items: center; flex: none; width: 33px; height: 34px;
   border-radius: 9px; background: #e9eddd; font-size: 24px;
 }
-.tool-icon.carrot { background: #f1dac3; }
 .tool-icon.wheat { background: #ebe4c5; }
-.tool-icon.pumpkin { background: #f0d5c3; }
 .tool-icon.water { background: #c7dfe2; }
 .tool-icon.sprinkler { background: #c1d9d3; }
 .tool-details { display: flex; min-width: 0; }
