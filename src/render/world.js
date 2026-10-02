@@ -13,7 +13,7 @@ export function createWorld(scene) {
     treeTrunk: "#82613f", tree: "#567e53", treeBright: "#71975c", treeDark: "#456d47",
     waterRim: "#bfb38a", water: "#659f98", waterLight: "#90c4ac",
     rock: "#acb08d", flower: "#edddc1", flowerPink: "#d98f87", flowerYellow: "#dfb55e",
-    bush: "#648d58", cloud: "#e4d6b9", chimney: "#8b705a",
+    bush: "#648d58", chimney: "#8b705a",
   };
   for (const [key, hex] of Object.entries(colors)) {
     const m = new B.StandardMaterial(key, scene);
@@ -163,13 +163,6 @@ export function createWorld(scene) {
       sphere("wildflower",x,.43,z,.13,.12,.13,variant<.55?materials.flowerYellow:variant<.78?materials.flowerPink:materials.flower,7);
     }
   }
-  // A few soft clouds hovering over the diorama.
-  for (const [x,y,z] of [[-6,7,-2],[4,8,6]]) {
-    sphere("cotton cloud",x,y,z,1.6,.52,.75,materials.cloud);
-    sphere("cotton cloud puff",x+.7,y+.14,z,1.12,.73,.8,materials.cloud);
-    sphere("cotton cloud puff",x-.6,y+.12,z,1.18,.66,.76,materials.cloud);
-  }
-
   function playWatering(index) {
     const plot = plots[index];
     if (plot) wateringEffect.play(plot.position);
