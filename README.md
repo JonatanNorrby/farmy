@@ -5,7 +5,7 @@ A cozy, isometric 3D farming prototype built with Babylon.js and plain HTML/CSS/
 ## Play
 - Choose **Carrot**, **Wheat**, or **Pumpkin** in the toolbar (keys **1–3**).
 - Click an empty plot to buy and plant a seed.
-- Choose the watering can (key **4**) and click a growing plant once to speed it up.
+- Choose the watering can (key **4**) and click a growing plant once to speed it up, with a droplet-and-splash particle animation.
 - Click a mature crop with any tool to harvest it, earn coins, and plant again.
 - Progress is automatically saved to this browser (localStorage). Crops also grow while the page is closed.
 - Mouse wheel zooms; the game works with touch controls too.
@@ -30,13 +30,14 @@ src/game/storage.js        Defensive save/load with versioned localStorage
 src/render/scene.js        Babylon engine scene, lighting, camera
 src/render/world.js        Ground, farm plots, cottage, vegetation
 src/render/cropMeshes.js   Procedural 3D crop models
+src/render/watering.js     Reusable, self-cleaning watering particles
 src/ui/interface.js        UI events and presentation
 tests/farm.test.js         Node built-in test runner
 .github/workflows/pages.yml Static GitHub Pages deployment
 ```
 
 ## Extend
-Keep crop/economy rules in `src/game/`, visual implementations in `src/render/`, UI in `src/ui/`, and balancing data in `src/config/`. The world is created from simple Babylon primitives without external textures or 3D assets, leaving room for GLB assets later. A save schema version is included for future migration.
+Keep crop/economy rules in `src/game/`, visual implementations in `src/render/`, UI in `src/ui/`, and balancing data in `src/config/`. The world is created from simple Babylon primitives and an in-memory particle texture without external textures or 3D assets, leaving room for GLB assets later. A save schema version is included for future migration.
 
 ## Deploy
 Go to **Settings → Pages → Build and deployment** and set source to **GitHub Actions** (once, if not already enabled). Pushes to `main` trigger `Deploy Farmy to Pages`. The site is expected at https://jonatannorrby.github.io/farmy/.
