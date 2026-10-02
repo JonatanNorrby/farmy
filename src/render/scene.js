@@ -1,4 +1,6 @@
 import { DEFAULT_BRIGHTNESS, normalizeBrightness, exposureForBrightness } from "../game/settings.js";
+import { FARM, landBounds } from "../config/crops.js";
+import { createCameraMovement } from "./cameraMovement.js";
 
 // Babylon setup is deliberately isolated from simulation and UI.
 export function createScene(canvas) {
@@ -37,7 +39,10 @@ export function createScene(canvas) {
   sky.diffuse = new B.Color3(.72, .75, .80);
   sky.groundColor = new B.Color3(.40, .29, .22);
 
-  const camera = new B.ArcRotateCamera("isometric", Math.PI / 4, 1.03, 32, new B.Vector3(0, .1, -.2), scene);
+  const startLand = landBounds(FARM.initialLevel);
+  const camera = new B.ArcRotateCamera("isometric", Math.PI / 4, 1.03, 32,
+    new B.Vector3((startLand.minX + startLand.maxX) / 2, .1,
+      (startLand.minZ + startLand.maxZ) / 2), scene);
   camera.mode = B.Camera.ORTHOGRAPHIC_CAMERA;
   camera.inputs.clear(); // Locked isometric view, not a freely orbiting editor.
   camera.minZ = .1;
@@ -59,25 +64,10 @@ export function createScene(canvas) {
     zoom = Math.min(1.65, Math.max(.72, zoom + Math.sign(event.deltaY) * .07));
     resize();
   }, { passive: false });
-  // On narrow screens, dragging an empty area lets the player inspect the farm.
-  let drag = null;
-  canvas.addEventListener("pointerdown", event => {
-    if (event.button !== 2) return;
-    drag = { x: event.clientX, y: event.clientY };
-  });
+  // Pointer gestures are coordinated in main.js so painting never fights
+  // camera dragging. Both right-drag and ordinary drag use this controller.
+  const cameraMovement = createCameraMovement(camera, canvas, B);
   canvas.addEventListener("contextmenu", event => event.preventDefault());
-  window.addEventListener("pointerup", () => { drag = null; });
-  canvas.addEventListener("pointermove", event => {
-    if (!drag) return;
-    const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-    const scale = (camera.orthoTop - camera.orthoBottom) / Math.max(1, canvas.clientHeight);
-    // Move in camera-space ground-plane axes.
-    camera.target.x -= (dx + dy) * scale * .48;
-    camera.target.z -= (dy - dx) * scale * .48;
-    camera.target.x = Math.max(-6, Math.min(6, camera.target.x));
-    camera.target.z = Math.max(-5, Math.min(5, camera.target.z));
-    drag = { x: event.clientX, y: event.clientY };
-  });
   resize();
-  return { B, engine, scene, camera, resize, setBrightness };
+  return { B, engine, scene, camera, resize, setBrightness, cameraMovement };
 }
