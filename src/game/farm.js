@@ -1,4 +1,4 @@
-import { CROPS, FARM, PLOT_COUNT, SPRINKLER } from "../config/crops.js";
+import { CROPS, FARM, PLOT_COUNT, SPRINKLER, PLANTABLE_CROPS } from "../config/crops.js";
 
 export const SAVE_VERSION = 3;
 
@@ -85,8 +85,8 @@ export function placeSprinkler(state, index, now = Date.now()) {
 
 export function plant(state, index, cropId, now = Date.now()) {
   if (!isPlotUnlocked(state, index)) return failure(state, "Unlock land first.");
+  if (!PLANTABLE_CROPS.includes(cropId)) return failure(state, "Only wheat can be planted.");
   const crop = CROPS[cropId];
-  if (!crop) return failure(state, "Select a seed.");
   if (state.plots[index]) return failure(state, "Plot already occupied.");
   if (state.coins < crop.cost) return failure(state, "Not enough coins.");
   const planted = { cropId, plantedAt: now, readyAt: now + crop.growMs, watered: false };
