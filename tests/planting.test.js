@@ -61,7 +61,7 @@ test("stroke processes candidates in drawing order when only one seed is left", 
 
 test("a full bag contains ten finite seed charges across multiple painted strokes", () => {
   let state = bag();
-  const extra = paintSoil(state, point(-5.15, -.65), point(-1.05, -.65));
+  const extra = paintSoil(state, point(-5.15, -.65), point(-.05, -.65));
   assert.equal(extra.ok, true);
   state = extra.state;
   const first = paintSeeds(state, point(-8.6, -3.5), point(-6.4, -3.5), "wheat", 1000);
@@ -72,7 +72,7 @@ test("a full bag contains ten finite seed charges across multiple painted stroke
   assert.deepEqual(second.plantedIndices, [2, 3]);
   state = second.state;
   assert.equal(state.inventory.wheat, 6);
-  const third = paintSeeds(state, point(-5.15, -.65), point(-1.05, -.65), "wheat", 3000);
+  const third = paintSeeds(state, point(-5.15, -.65), point(-.05, -.65), "wheat", 3000);
   assert.equal(third.ok, true);
   assert.equal(third.plantedIndices.length, 6);
   assert.equal(third.state.inventory.wheat, 0);
